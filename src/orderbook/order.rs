@@ -8,6 +8,7 @@ pub  enum Side{
 }
 #[derive(Debug , Copy , Clone)]
 pub struct Order{
+    pub order_type : Type,
     pub order_id : OrderId , 
     pub side : Side , 
     pub shares_qty : u64 , 
@@ -17,3 +18,9 @@ pub struct Order{
     pub prev : Option<OrderKey>
 }
 
+
+#[derive(Debug , Copy , Clone)]
+pub enum Type {
+    Market ,
+    Limit 
+}

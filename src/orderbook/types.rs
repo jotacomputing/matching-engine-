@@ -95,8 +95,8 @@ pub enum OrderBookError{
 }
 #[derive(Debug)]
 pub enum Event {
-    PriceLevelChangedEvent ,
-    MatchResult
+    PriceLevelChangedEvent(PriceLevelChangedEvent) ,
+    MatchResult(MatchResult)
 }
 pub struct PubLishError{
 

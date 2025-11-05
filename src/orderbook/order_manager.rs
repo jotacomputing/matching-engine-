@@ -4,6 +4,7 @@ use crate::orderbook::order::Order;
 
 new_key_type! { pub  struct  OrderKey; }
 
+#[derive(Debug)]
 pub struct OrderManager{
     pub all_orders : SlotMap<OrderKey , Order>,
     pub id_to_key : HashMap<u64  , OrderKey>
