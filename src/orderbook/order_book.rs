@@ -1,10 +1,14 @@
-use crate::book::BookSide;
-use crate::order::{self, Order, Side};
+use crate::orderbook::book::BookSide;
+use crate::orderbook::order::{self, Order, Side};
+use core::error;
 use std::collections::VecDeque;
-use crate::order_manager::OrderManager;
+use crate::orderbook::order_manager::OrderManager;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use crate::types::{Fill , Fills};
-use crate::iterator::{LevelInfo , LevelsWithCumalativeDepth};
+use crate::orderbook::types::{Fill , Fills , MatchResult  , OrderBookError};
+use crate::orderbook::iterator::{LevelInfo , LevelsWithCumalativeDepth};
+use tokio::sync::mpsc;
+
+use super::types::Event;
 #[derive(Debug)]
 pub struct PriceLevel{
     pub total_volume : u64,
@@ -15,6 +19,8 @@ pub struct PriceLevel{
 
 #[derive(Debug)]
 pub struct OrderBook{
+    pub order_reciver : mpsc::Receiver<Order>,
+    pub match_res_sender : mpsc::Sender<Event>,
     pub symbol : String , 
     pub askside : BookSide,
     pub bidside : BookSide,
@@ -22,13 +28,15 @@ pub struct OrderBook{
 }
 
 impl OrderBook{
-    pub fn new(symbol : String)->Self{
+    pub fn new(symbol : &str , rx : mpsc::Receiver<Order> , sx : mpsc::Sender<Event>)->Self{
         Self {
-            symbol : symbol ,
+            order_reciver : rx , 
+            match_res_sender : sx ,
+            symbol : String::from(symbol),
             askside: BookSide::new(Side::Ask),
             bidside: BookSide::new(Side::Bid) ,
             last_trade_price: AtomicU64::new(0)
-            }
+        }
     }
 
 
@@ -39,7 +47,7 @@ impl OrderBook{
         }
     }
 
-    pub fn match_market_order(&mut self , order:&mut Order , manager : &mut OrderManager)->Fills{
+    pub fn match_market_order(&mut self , order:&mut Order , manager : &mut OrderManager)->Result<MatchResult , OrderBookError>{
         // wejust need to fill the shares 
         //if a very large maket order comes and there are not enough shares for it to eat , its canceled
 
@@ -109,11 +117,13 @@ impl OrderBook{
 
         }
 
-        fills 
+        Ok(MatchResult{
+            order_id : order.order_id , fills , remaining_qty:0
+        }) 
     }
 
 
-    pub fn match_bid(&mut self , order: &mut Order , manager : &mut OrderManager)->Fills{
+    pub fn match_bid(&mut self , order: &mut Order , manager : &mut OrderManager)->Result<MatchResult , OrderBookError>{
         let mut fills =  Fills::new();
         let opposite_side = &mut  self.askside ;
         // we have a bid to match , the best price shud be the loweest ask 
@@ -182,10 +192,12 @@ impl OrderBook{
             // this will go into the order book 
             self.bidside.insert(order.clone() , manager);
         }
-        fills
+        Ok(MatchResult{
+            order_id : order.order_id , fills , remaining_qty : order.shares_qty
+        })
     }
 
-    pub fn match_ask(&mut self , order: &mut Order , manager : &mut OrderManager)->Fills{
+    pub fn match_ask(&mut self , order: &mut Order , manager : &mut OrderManager)->Result<MatchResult , OrderBookError>{
         let mut fills = Fills::new();
         let opposite_side = &mut  self.bidside ;
         // we have a bid to match , the best price shud be the loweest ask 
@@ -252,7 +264,9 @@ impl OrderBook{
             // this will go into the order book 
             self.askside.insert(order.clone() , manager);
         }
-        fills
+        Ok(MatchResult{
+            order_id : order.order_id , fills , remaining_qty : order.shares_qty
+        })
     }
 
     pub fn get_best_bid(&mut self)->Option<u64>{

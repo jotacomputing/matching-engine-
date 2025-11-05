@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use crate::order::Side;
+use crate::orderbook::order::Side;
 pub type OrderId = u64;
 #[derive(Debug)]
 pub struct Fill{
@@ -75,7 +75,9 @@ impl TradeResult{
 
 //pub type TradeListener = Arc<dyn Fn(&TradeResult) + Send + Sync>;
 pub type TradeListener = Arc<dyn Fn(TradeResult) + Send + Sync>;
- 
+
+
+#[derive(Debug)]
 pub struct PriceLevelChangedEvent{
     pub side : Side  ,
     pub quantity : u64 , 
@@ -83,3 +85,23 @@ pub struct PriceLevelChangedEvent{
 }
 
 pub type PriceLevelChangedEventListener = Arc<dyn Fn(PriceLevelChangedEvent) + Send+Sync>;
+
+// dyn Fn() means any type which taken in a PricelevelChangedEvent and returns nothing 
+// if we dint want it to be thread safe we cud have used just Box 
+
+
+pub enum OrderBookError{
+    // aff errors that can occour 
+}
+#[derive(Debug)]
+pub enum Event {
+    PriceLevelChangedEvent ,
+    MatchResult
+}
+pub struct PubLishError{
+
+}
+
+pub struct PublishSuccess{
+    
+}

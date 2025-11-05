@@ -1,5 +1,5 @@
-use crate::price_level::PriceLevel;
-use crate::order::Side;
+use crate::orderbook::price_level::PriceLevel;
+use crate::orderbook::order::Side;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -22,7 +22,6 @@ impl<'a> LevelsWithCumalativeDepth<'a>{
             Side::Ask => Box::new(price_level.iter().rev()),
             Side::Bid => Box::new(price_level.iter())
         };
-
         Self{
             iter , 
             cumalative_depth : 0 

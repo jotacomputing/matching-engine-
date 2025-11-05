@@ -1,5 +1,5 @@
-use crate::types::{OrderId };
-use crate::order_manager::OrderKey;
+use crate::orderbook::types::{OrderId };
+use crate::orderbook::order_manager::OrderKey;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub  enum Side{

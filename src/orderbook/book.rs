@@ -1,6 +1,6 @@
 use std::collections::BTreeMap ; 
-use crate::{order::Side, price_level::PriceLevel , order::Order};
-use crate::order_manager::OrderManager;
+use crate::orderbook::{order::Side, price_level::PriceLevel , order::Order};
+use crate::orderbook::order_manager::OrderManager;
 
 #[derive(Debug)]
 pub struct BookSide{
