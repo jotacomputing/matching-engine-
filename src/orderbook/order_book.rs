@@ -1,13 +1,12 @@
 use crate::orderbook::book::BookSide;
-use crate::orderbook::order::{self, Order, Side , Type};
-use core::error;
+use crate::orderbook::order::{ Order, Side };
+
 use std::collections::VecDeque;
 use crate::orderbook::order_manager::OrderManager;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{ AtomicU64, Ordering};
 use crate::orderbook::types::{Fill , Fills , MatchResult  , OrderBookError};
-use crate::orderbook::iterator::{LevelInfo , LevelsWithCumalativeDepth};
-use tokio::sync::mpsc;
-use crate::orderbook::types::Event;
+use crate::orderbook::iterator:: LevelsWithCumalativeDepth;
+
 #[derive(Debug)]
 pub struct PriceLevel{
     pub total_volume : u64,
@@ -65,10 +64,10 @@ impl OrderBook{
                 let level = opposite_side.levels.get_mut(&best_price).unwrap();
                 // we got the price Level we start matchng 
                 while order.shares_qty > 0 && level.check_if_empty() == false{
-                    let mut oldest_order_key = level.remove_oldest_order(&mut self.manager).unwrap();
-                    let (mut shares , order_id , mut next_order_key) = {
+                    let  oldest_order_key = level.remove_oldest_order(&mut self.manager).unwrap();
+                    let ( shares , order_id ) = {
                         let oldest_order =  self.manager.all_orders.get_mut(oldest_order_key).unwrap();
-                        (oldest_order.shares_qty , oldest_order.order_id , oldest_order.next)
+                        (oldest_order.shares_qty , oldest_order.order_id )
                     };
 
                     if order.shares_qty >= shares{
@@ -122,6 +121,7 @@ impl OrderBook{
 
     pub fn match_bid(&mut self , order: &mut Order)->Result<MatchResult , OrderBookError>{
        // println!("recived the order , matching now");
+        
         let mut fills =  Fills::new();
         let opposite_side = &mut  self.askside ;
         // we have a bid to match , the best price shud be the loweest ask 
@@ -139,10 +139,12 @@ impl OrderBook{
                 let level = opposite_side.levels.get_mut(&best_price).unwrap();
                 // we got the price Level we start matchng 
                 while order.shares_qty > 0 && level.check_if_empty() == false{
+
+
                     let  oldest_order_key = level.remove_oldest_order(&mut self.manager).unwrap();
-                    let ( shares , order_id , mut next_order_key) = {
+                    let ( shares , order_id ) = {
                         let oldest_order = self.manager.all_orders.get_mut(oldest_order_key).unwrap();
-                        (oldest_order.shares_qty , oldest_order.order_id , oldest_order.next)
+                        (oldest_order.shares_qty , oldest_order.order_id )
                     };
 
                     if order.shares_qty >= shares{
@@ -231,10 +233,10 @@ impl OrderBook{
                 let level = opposite_side.levels.get_mut(&best_price).unwrap();
                 // we got the price Level we start matchng 
                 while order.shares_qty > 0 && level.check_if_empty() == false{
-                    let mut oldest_order_key = level.remove_oldest_order(&mut self.manager).unwrap();
-                    let (mut shares , order_id , mut next_order_key) = {
+                    let  oldest_order_key = level.remove_oldest_order(&mut self.manager).unwrap();
+                    let ( shares , order_id ) = {
                         let oldest_order = self.manager.all_orders.get_mut(oldest_order_key).unwrap();
-                        (oldest_order.shares_qty , oldest_order.order_id , oldest_order.next)
+                        (oldest_order.shares_qty , oldest_order.order_id )
                     };
 
                     if order.shares_qty >= shares{
@@ -313,7 +315,7 @@ impl OrderBook{
         Some(self.last_trade_price.load(Ordering::Relaxed))
     }
 
-    pub fn get_depth(&self , limit:u64)->(Vec<[String ; 3]> , Vec<[String ; 3]>){
+    pub fn get_depth(&self)->(Vec<[String ; 3]> , Vec<[String ; 3]>){
         // tuple of 2 vectros , each with type string and 3 elements 
         let mut bids = Vec::new();
         let mut asks = Vec::new();

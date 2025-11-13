@@ -1,16 +1,8 @@
 use std::collections::HashMap;
-use std::sync::atomic::AtomicU64;
-use std::sync::Arc;
 use crate::orderbook::order::{Order, Side};
-use crate::orderbook::types::{Event , PubLishError , PublishSuccess};
+use crate::orderbook::types::Event ;
 use crate::orderbook::order_book::OrderBook;
-use crate::publisher;
-use crate::publisher::event_publisher::{self, EventPublisher};
-use tokio::sync::mpsc;
 use crate::shm::queue::Queue;
-use std::thread;
-use std::time::Duration;
-use std::sync::atomic::Ordering;
 
 pub trait Engine{
     fn add_book(&mut self , symbol : u32);
@@ -49,7 +41,6 @@ impl MyEngine{
 
 
 
-
         let mut queue = match Queue::open("/tmp/sex") {
             Ok(q)=>q,
             Err(e)=>{
@@ -57,17 +48,21 @@ impl MyEngine{
                 return;
             }
         };
-        
         let mut count = 0u64;
         let mut last_log = std::time::Instant::now();
+        
         loop {
             match queue.dequeue() {
                 Ok(Some(shm_order))=>{
                     
                     //println!("got the shm order");
                     let order_side = match  shm_order.side {
-                        0 => Side::Bid,
-                        1=>Side::Ask,
+                        0 => {
+                            Side::Bid
+                        },
+                        1=>{
+                            Side::Ask
+                        }
                         _ => {
                             continue;
                         }
@@ -79,7 +74,11 @@ impl MyEngine{
                             Side::Bid => order_book.match_bid(&mut my_order),
                             Side::Ask => order_book.match_ask(&mut my_order)
                         };
-                        let _ = self.event_publisher.send(Event::MatchResult(events.ok().unwrap()));
+                        //println!("{:?}" , events);
+                        if let Ok(match_result)=events{
+                            let _ = self.event_publisher.send(Event::MatchResult(match_result));
+                        }
+                       
                     }
                     count+=1;
                     if last_log.elapsed().as_secs() >= 2 {
@@ -88,6 +87,7 @@ impl MyEngine{
                         count = 0;
                         last_log = std::time::Instant::now();
                     }
+                
                 }
                 Ok(None)=>{
                     //println!("order not reiceved");

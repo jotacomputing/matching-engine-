@@ -53,7 +53,7 @@ pub struct ShmOrder{
     pub side: u8,   // 0=buy, 1=sell
     pub status: u8, // 0=pending, 1=filled, 2=rejected
     // Array of bytes last
-    
+    _padding: [u8; 10], // padding to make it 48 bytes     
 }
 
 impl Default for ShmOrder {
@@ -67,6 +67,7 @@ impl Default for ShmOrder {
             side: 0,
             timestamp: 0,
             status: 0,
+            _padding: [0; 10],
         }
     }
 }

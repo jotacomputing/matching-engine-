@@ -89,7 +89,7 @@ pub type PriceLevelChangedEventListener = Arc<dyn Fn(PriceLevelChangedEvent) + S
 // dyn Fn() means any type which taken in a PricelevelChangedEvent and returns nothing 
 // if we dint want it to be thread safe we cud have used just Box 
 
-
+#[derive(Debug)]
 pub enum OrderBookError{
     // aff errors that can occour 
 }
