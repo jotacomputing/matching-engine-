@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use dashmap::DashMap;
+
 use crate::orderbook::order::{Order, Side};
 use crate::orderbook::types::Event ;
 use crate::orderbook::order_book::OrderBook;
@@ -18,7 +20,8 @@ pub struct MyEngine{
     pub engine_id :usize ,
     pub book_count : usize, 
     pub books : HashMap< u32 , OrderBook>,
-    pub event_publisher : crossbeam::channel::Sender<Event>
+    pub event_publisher : crossbeam::channel::Sender<Event>,
+    pub test_orderbook : OrderBook
 }
 
 impl MyEngine{
@@ -30,6 +33,7 @@ impl MyEngine{
                 book_count : 0 ,
                 books : HashMap::new(),
                 event_publisher  ,
+                test_orderbook : OrderBook::new(100)
             } 
             
     }
@@ -78,8 +82,14 @@ impl MyEngine{
                         if let Ok(match_result)=events{
                             let _ = self.event_publisher.send(Event::MatchResult(match_result));
                         }
-                       
                     }
+                    //let test_events = match order_side {
+                    //    Side::Bid => self.test_orderbook.match_bid(&mut my_order),
+                    //    Side::Ask => self.test_orderbook.match_ask(&mut my_order)
+                    //};
+                    //if let Ok(match_result) = test_events{
+                    //    let _ = self.event_publisher.send(Event::MatchResult(match_result));
+                    //}
                     count+=1;
                     if last_log.elapsed().as_secs() >= 2 {
                         let rate = count as f64 / last_log.elapsed().as_secs_f64();
