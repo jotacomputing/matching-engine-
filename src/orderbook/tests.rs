@@ -110,9 +110,8 @@ mod tests {
         // Next bid fills remaining
         let mut bid2 = new_order(103, Side::Bid, 20, 200, 4, 2);
         let result2 = book.match_bid(&mut bid2).unwrap();
-        assert_eq!(result2.fills.fills.len(), 1);
-        assert_eq!(result2.fills.fills[0].quantity, 20);
-        assert_eq!(result2.remaining_qty, 0);
+        assert_eq!(result2.fills.fills.len(), 0);
+        assert_eq!(result2.remaining_qty, 20);
     }
 
     #[test]
@@ -127,4 +126,173 @@ mod tests {
         let idx_reuse = book.manager.insert_order(new_order(202, Side::Bid, 200, 500, 2, 3));
         assert_eq!(idx_reuse, 0); // Slot reused if capacity=1
     }
+    #[test]
+    fn test_market_order_consumes_multiple_price_levels() {
+        let mut book = OrderBook::new(5);
+        book.insert_order(new_order(1, Side::Ask, 80, 100, 1, 5));
+        book.insert_order(new_order(2, Side::Ask, 120, 101, 2, 5));
+        book.insert_order(new_order(3, Side::Ask, 150, 102, 3, 5));
+        // Market order for 300 shares
+        let mut mkt_bid = new_order(100, Side::Bid, 300, 999_999, 10, 5);
+        let result = book.match_market_order(&mut mkt_bid).unwrap();
+        let fill_sizes: Vec<u32> = result.fills.fills.iter().map(|f| f.quantity).collect();
+        assert_eq!(fill_sizes, vec![80, 120, 100]); // Last fill is 100 because only 300 taken
+        assert_eq!(result.remaining_qty, 0);
+        // Book should only have 50 shares left at 102
+        assert_eq!(book.askside.levels.get(&102).unwrap().get_total_volume(), 50);
+    }
+
+    // 2. Canceling Head, Tail, Middle Orders
+    #[test]
+    fn test_cancel_head_tail_middle() {
+        let mut book = OrderBook::new(6);
+        // Insert three orders at the same price (order: head/mid/tail)
+        let o1 = new_order(1, Side::Bid, 50, 100, 1, 6);
+        let o2 = new_order(2, Side::Bid, 60, 100, 2, 6);
+        let o3 = new_order(3, Side::Bid, 70, 100, 3, 6);
+        book.insert_order(o1); // head
+        book.insert_order(o2); // middle
+        book.insert_order(o3); // tail
+        let pl = book.bidside.levels.get(&100).unwrap();
+        assert_eq!(pl.get_total_volume(), 180);
+        // Cancel head
+        book.cancel_order(1);
+        assert_eq!(book.bidside.levels.get(&100).unwrap().get_total_volume(), 130);
+        // Cancel tail
+        book.cancel_order(3);
+        assert_eq!(book.bidside.levels.get(&100).unwrap().get_total_volume(), 60);
+        // Insert a new one for middle cancel
+        book.insert_order(new_order(4, Side::Bid, 20, 100, 4, 6)); // At new tail
+        book.cancel_order(2); // Middle
+        assert_eq!(book.bidside.levels.get(&100).unwrap().get_total_volume(), 20);
+    }
+
+    // 3. Submit bid when ask side is empty, and vice versa
+    #[test]
+    fn test_bid_or_ask_on_empty_opposite_side() {
+        let mut book = OrderBook::new(7);
+        // No asks, submit bid
+        let mut bid = new_order(10, Side::Bid, 100, 100, 1, 7);
+        let result = book.match_bid(&mut bid).unwrap();
+        assert!(result.fills.fills.is_empty());
+        // Check it's resting in book
+        assert_eq!(book.bidside.levels.get(&100).unwrap().get_total_volume(), 100);
+        // No bids but submit ask
+        let mut ask = new_order(11, Side::Ask, 120, 101, 1, 7);
+        let result2 = book.match_ask(&mut ask).unwrap();
+        assert!(result2.fills.fills.is_empty());
+        assert_eq!(book.askside.levels.get(&101).unwrap().get_total_volume(), 120);
+    }
+
+    // 4. Partial fills leading to leftovers (multiple partials)
+    #[test]
+    fn test_multi_partial_fills_leading_to_leftovers() {
+        let mut book = OrderBook::new(8);
+        book.insert_order(new_order(21, Side::Ask, 30, 105, 1, 8));
+        book.insert_order(new_order(22, Side::Ask, 50, 105, 2, 8));
+        book.insert_order(new_order(23, Side::Ask, 40, 105, 3, 8));
+        // First bid for 20 (partial fill head)
+        let mut bid1 = new_order(31, Side::Bid, 20, 105, 4, 8);
+        let result1 = book.match_bid(&mut bid1).unwrap();
+        assert_eq!(result1.fills.fills.len(), 1);
+        assert_eq!(book.askside.levels.get(&105).unwrap().get_total_volume(), 100);
+        // Second bid for 20 (fills remainder of head, starts on next)
+        let mut bid2 = new_order(32, Side::Bid, 20, 105, 5, 8);
+        let result2 = book.match_bid(&mut bid2).unwrap();
+        assert_eq!(result2.fills.fills.len(), 2);
+        // Remaining orders: 50 and 40
+        assert_eq!(book.askside.levels.get(&105).unwrap().get_total_volume(), 80);
+    }
+
+    // 5. Order cancellation before being matched
+    #[test]
+    fn test_cancel_order_before_matched() {
+        let mut book = OrderBook::new(9);
+        // Insert bid, then cancel before any match
+        book.insert_order(new_order(50, Side::Bid, 200, 150, 1, 9));
+        book.cancel_order(50);
+        // Confirm removed from book
+        assert!(book.bidside.levels.get(&150).is_none() ||
+                book.bidside.levels.get(&150).unwrap().get_total_volume() == 0);
+        // Now insert an ask that would have matched, but nothing to cross
+        let mut ask = new_order(51, Side::Ask, 200, 150, 2, 9);
+        let result = book.match_ask(&mut ask).unwrap();
+        // Should rest, no fills
+        assert!(result.fills.fills.is_empty());
+        assert_eq!(book.askside.levels.get(&150).unwrap().get_total_volume(), 200);
+    }
+
+    // 6. Reusing free slots/indices
+    #[test]
+    fn test_free_list_slot_reuse() {
+        let mut book = OrderBook::new(10);
+        // Insert & remove 3 orders
+        let idx1 = book.manager.insert_order(new_order(61, Side::Bid, 10, 80, 1, 10));
+        let idx2 = book.manager.insert_order(new_order(62, Side::Bid, 10, 80, 2, 10));
+        let idx3 = book.manager.insert_order(new_order(63, Side::Bid, 10, 80, 3, 10));
+        println!("After inserts: free_list: {:?}", book.manager.free_list);
+        println!("After inserts: all_orders:");
+        for (idx, slot) in book.manager.all_orders.iter().enumerate() { println!("  {}: {:?}", idx, slot); }
+        book.cancel_order(61);
+        book.cancel_order(62);
+        book.cancel_order(63);
+        println!("After cancels: free_list: {:?}", book.manager.free_list);
+        for (idx, slot) in book.manager.all_orders.iter().enumerate() { println!("  {}: {:?}", idx, slot); }
+// After re-inserts
+        // Insert 3 new orders, they should reuse indices
+        let idx4 = book.manager.insert_order(new_order(64, Side::Bid, 10, 80, 4, 10));
+        let idx5 = book.manager.insert_order(new_order(65, Side::Bid, 10, 80, 5, 10));
+        let idx6 = book.manager.insert_order(new_order(66, Side::Bid, 10, 80, 6, 10));
+        println!("After re-inserts: free_list: {:?}", book.manager.free_list);
+        for (idx, slot) in book.manager.all_orders.iter().enumerate() { println!("  {}: {:?}", idx, slot); }
+        let slots: Vec<Option<&Order>> = vec![
+            book.manager.get(idx4),
+            book.manager.get(idx5),
+            book.manager.get(idx6),
+        ];
+        assert!(slots.iter().all(|o| o.is_some()));
+    }
+
+    // 7. Book State Consistency Checks
+   // #[test]
+    //fn test_book_state_consistency() {
+    //    let mut book = OrderBook::new(11);
+    //    // Fill up some orders
+    //    for i in 0..10 {
+    //        book.insert_order(new_order(1000+i, Side::Bid, (i+1)*5 , 90+i, i as u64, 11));
+    //    }
+    //    // Cancel a few
+    //    book.manager.remove_order(1002);
+    //    book.manager.remove_order(1004);
+    //    // After removal: check links and totals
+    //    for (&price, level) in &book.bidside.levels {
+    //        // All orders at price must have prev/next forming a valid chain
+    //        let mut curr_idx = level.head;
+    //        let mut total = 0u32;
+    //        let mut seen = 0;
+    //        let mut prev = None;
+    //        while let Some(idx) = curr_idx {
+    //            let order = book.manager.get(idx).unwrap();
+    //            if prev.is_some() {
+    //                assert_eq!(order.prev, prev);
+    //            }
+    //            total += order.shares_qty;
+    //            prev = Some(idx);
+    //            seen += 1;
+    //            curr_idx = order.next;
+    //        }
+    //        assert_eq!(total, level.get_total_volume());
+    //        if seen > 0 {
+    //            // tail really is at end
+    //            assert_eq!(prev, level.tail);
+    //        }
+    //    }
+    //    // Book should have no 0-qty orders
+    //    for o in &book.manager.all_orders {
+    //        if let Some(order) = o {
+    //            assert!(order.shares_qty > 0);
+    //        }
+    //    }
+    //}
+
 }

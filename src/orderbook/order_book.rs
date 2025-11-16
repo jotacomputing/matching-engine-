@@ -340,6 +340,7 @@ impl OrderBook{
             match side{
                 Side::Ask => {
                     self.askside.delete_order(price, &mut self.manager, order_id);
+
                 },
                 Side::Bid => {
                     self.bidside.delete_order(price, &mut self.manager, order_id);
