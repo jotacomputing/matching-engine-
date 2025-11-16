@@ -1,7 +1,5 @@
 use crate::orderbook::book::BookSide;
 use crate::orderbook::order::{ Order, Side };
-
-use std::collections::VecDeque;
 use crate::orderbook::order_manager::OrderManager;
 use std::sync::atomic::{ AtomicU64, Ordering};
 use crate::orderbook::types::{Fill , Fills , MatchResult  , OrderBookError};
@@ -59,7 +57,7 @@ impl OrderBook{
                 while order.shares_qty > 0 && level.check_if_empty() == false{
                     let  oldest_order_key = level.remove_oldest_order(&mut self.manager).unwrap();
                     let ( shares , order_id ) = {
-                        let oldest_order =  self.manager.all_orders.get_mut(oldest_order_key).unwrap();
+                        let oldest_order =  self.manager.get_mut(oldest_order_key).unwrap();
                         (oldest_order.shares_qty , oldest_order.order_id )
                     };
 
@@ -75,14 +73,14 @@ impl OrderBook{
                             taker_order_id : order.order_id,
                             maker_order_id : order_id
                         });
-                         self.manager.all_orders.remove(oldest_order_key);
-                         self.manager.id_to_key.remove(&order_id);
+                         self.manager.remove_order(order_id);
+                         
                     }
                     else {
                         // if shares is more then then the market order is finished and then oldest order will
                         // be chnaged and inserted at the head of the level not the tail 
                         let consumed = order.shares_qty;
-                        self.manager.all_orders.get_mut(oldest_order_key).unwrap().shares_qty =  self.manager.all_orders.get_mut(oldest_order_key).unwrap().shares_qty.saturating_sub(consumed);
+                        self.manager.get_mut(oldest_order_key).unwrap().shares_qty =  self.manager.get_mut(oldest_order_key).unwrap().shares_qty.saturating_sub(consumed);
                         // changed in the orignal map too 
                         fills.add(Fill{
                             price : best_price ,
@@ -136,7 +134,7 @@ impl OrderBook{
 
                     let  oldest_order_key = level.remove_oldest_order(&mut self.manager).unwrap();
                     let ( shares , order_id ) = {
-                        let oldest_order = self.manager.all_orders.get_mut(oldest_order_key).unwrap();
+                        let oldest_order = self.manager.get_mut(oldest_order_key).unwrap();
                         (oldest_order.shares_qty , oldest_order.order_id )
                     };
 
@@ -152,14 +150,13 @@ impl OrderBook{
                             taker_order_id : order.order_id,
                             maker_order_id : order_id
                         });
-                        self.manager.all_orders.remove(oldest_order_key);
-                        self.manager.id_to_key.remove(&order_id);
+                        self.manager.remove_order(order_id);
                     }
                     else {
                         // if shares is more then then the market order is finished and then oldest order will
                         // be chnaged and inserted at the head of the level not the tail 
                         let consumed = order.shares_qty;
-                        self.manager.all_orders.get_mut(oldest_order_key).unwrap().shares_qty -= consumed;
+                        self.manager.get_mut(oldest_order_key).unwrap().shares_qty -= consumed;
                         // changed in the orignal map too 
                         fills.add(Fill{
                             price : best_price ,
@@ -228,7 +225,7 @@ impl OrderBook{
                 while order.shares_qty > 0 && level.check_if_empty() == false{
                     let  oldest_order_key = level.remove_oldest_order(&mut self.manager).unwrap();
                     let ( shares , order_id ) = {
-                        let oldest_order = self.manager.all_orders.get_mut(oldest_order_key).unwrap();
+                        let oldest_order = self.manager.get_mut(oldest_order_key).unwrap();
                         (oldest_order.shares_qty , oldest_order.order_id )
                     };
 
@@ -242,14 +239,13 @@ impl OrderBook{
                             taker_order_id : order.order_id,
                             maker_order_id : order_id
                         });
-                        self.manager.all_orders.remove(oldest_order_key);
-                        self.manager.id_to_key.remove(&order_id);
+                        self.manager.remove_order(order_id);
                     }
                     else {
                         // if shares is more then then the market order is finished and then oldest order will
                         // be chnaged and inserted at the head of the level not the tail 
                         let consumed = order.shares_qty;
-                        self.manager.all_orders.get_mut(oldest_order_key).unwrap().shares_qty -= consumed;
+                        self.manager.get_mut(oldest_order_key).unwrap().shares_qty -= consumed;
                         // changed in the orignal map too 
                         fills.add(Fill{
                             price : best_price ,
