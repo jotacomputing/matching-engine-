@@ -1,5 +1,5 @@
 use crate::orderbook::types::{OrderId };
-use crate::orderbook::order_manager::OrderKey;
+
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub  enum Side{
@@ -14,8 +14,8 @@ pub struct Order{
     pub shares_qty : u32 , 
     pub price : u64 ,
     pub timestamp : u64 , 
-    pub next : Option<OrderKey>,
-    pub prev : Option<OrderKey>,
+    pub next : Option<usize>,
+    pub prev : Option<usize>,
     pub symbol: u32,
 }
 
