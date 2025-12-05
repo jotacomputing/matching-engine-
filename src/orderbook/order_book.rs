@@ -124,7 +124,6 @@ impl OrderBook{
             };
             if best_price > order.price{
                 break;
-                
             }
 
             let empty = {
