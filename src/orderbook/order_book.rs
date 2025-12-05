@@ -179,8 +179,9 @@ impl OrderBook{
             }
         }
         if order.shares_qty > 0 {
-            // this will go into the order book 
+            // this will go into the order book , owner ship transfered 
             let remaining_order = Order{
+                user_id : order.user_id,
                 order_id : order.order_id , 
                 side : order.side , 
                 shares_qty : order.shares_qty ,
@@ -270,6 +271,7 @@ impl OrderBook{
         if order.shares_qty > 0 {
             // this will go into the order book 
             let remaining_order = Order{
+                user_id : order.user_id,
                 order_id : order.order_id , 
                 side : order.side , 
                 shares_qty : order.shares_qty ,

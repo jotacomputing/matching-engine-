@@ -2,7 +2,7 @@ use crate::orderbook::{order::Order};
 use crate::orderbook::order_manager::OrderManager;
 #[derive(Debug)]
 
-// a particular price level has a linkedList of orderindexes cuurenlty storing the head ans tail 
+// a particular price level has a linkedList of orderindexes cuurenlty storing the head and tail 
 pub struct PriceLevel{
     pub price : u64 , 
     pub total_vol : u32 , 
@@ -29,7 +29,6 @@ impl PriceLevel{
             None => {
                 self.head = Some(order_index);
                 self.tail = Some(order_index);
-              
             }
 
             Some(tail_index) => { 

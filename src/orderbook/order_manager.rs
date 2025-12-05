@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap;
 
 #[derive(Debug)]
 pub struct OrderManager{
-    // all orders for an orderBook are owned by the orderManager it self , we ill copy the indexex 
+    // all orders for an orderBook are owned by the orderManager it self , we will copy the indexes for storing in the price level 
     pub all_orders : Vec<Option<Order>>,
     pub id_to_index : FxHashMap<u64  , usize>,
     pub free_list : Vec<usize>
@@ -38,6 +38,7 @@ impl OrderManager{
 
     pub fn remove_order(&mut self, order_id: u64){
         if let Some(&order_index) = self.id_to_index.get(&order_id) {
+            // defrences too 
             self.all_orders[order_index] = None;   
             self.free_list.push(order_index);      
             self.id_to_index.remove(&order_id);     

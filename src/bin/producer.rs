@@ -48,6 +48,7 @@ fn main() {
 
     // ==== Pre-allocated Order (Pool-like reuse) ====
     let mut order = ShmOrder {
+        user_id  : 10 , 
         order_id: 0,
         client_id: 1001,
         shares_qty: 100,

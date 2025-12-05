@@ -9,6 +9,7 @@ pub  enum Side{
 #[derive(Debug , Copy , Clone)]
 pub struct Order{
    // pub order_type : Type,
+    pub user_id : u64,
     pub order_id : OrderId , 
     pub side : Side , 
     pub shares_qty : u32 , 
@@ -20,8 +21,9 @@ pub struct Order{
 }
 
 impl Order{
-    pub fn new(order_id : u64 , side : Side , shares_qty : u32 , price : u64 , timestamp :u64 , symbol : u32)->Self{
+    pub fn new(user_id : u64 ,order_id : u64 , side : Side , shares_qty : u32 , price : u64 , timestamp :u64 , symbol : u32)->Self{
         Self{
+            user_id,
             order_id ,
             side ,
             shares_qty,
@@ -45,6 +47,7 @@ pub struct ShmOrder{
     pub order_id: u64,
     pub price: u64,
     pub timestamp: u64,
+    pub user_id : u64 ,
     // Then u32s (4-byte aligned)
     pub client_id: u32,
     pub shares_qty: u32,
@@ -59,6 +62,7 @@ pub struct ShmOrder{
 impl Default for ShmOrder {
     fn default() -> Self {
         ShmOrder {
+            user_id : 0 ,
             order_id: 0,
             client_id: 0,
             symbol: 0,

@@ -1,17 +1,15 @@
 use std::thread::JoinHandle;
-
-use rust_orderbook_2::orderbook::order_book::OrderBook;
-use rust_orderbook_2::orderbook::{order_manager::OrderManager, types::Event};
-use rust_orderbook_2::engine::my_engine::{self, Engine, MyEngine};
+use rust_orderbook_2::orderbook::{types::Event};
+use rust_orderbook_2::engine::my_engine::{ Engine, MyEngine};
 use rust_orderbook_2::publisher::event_publisher::EventPublisher;
 use core_affinity;
-use crossbeam::channel::bounded;
+
 fn main(){
     let (event_sender , event_rec) = crossbeam::channel::bounded::<Event>(10000000);
     let sender_clone = event_sender.clone();
     let mut  running_engines : Vec<JoinHandle<()>> = Vec::new();
     let first_join_handle = std::thread::spawn(move ||{
-        let cores = core_affinity::get_core_ids().expect("Failed to get core IDs");
+        let _cores = core_affinity::get_core_ids().expect("Failed to get core IDs");
         core_affinity::set_for_current(core_affinity::CoreId { id:  1 });
         let mut engine = MyEngine::new(sender_clone , 0);
         engine.add_book(0);

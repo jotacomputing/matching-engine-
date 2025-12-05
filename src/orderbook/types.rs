@@ -105,3 +105,7 @@ pub struct PubLishError{
 pub struct PublishSuccess{
     
 }
+
+pub struct BalanceManagerError{
+
+}

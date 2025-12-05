@@ -6,7 +6,7 @@ use crate::shm::queue::Queue;
 
 pub trait Engine{
     fn add_book(&mut self , symbol : u32);
-    fn get_book(&self , symbol : u32)->Option<&OrderBook>;
+    fn get_book(&self , symbol : u32)->Option<&OrderBook>; // can only get a refrence , orderbooks are owned by the engine
     fn get_book_mut(&mut self, symbol: u32) -> Option<&mut OrderBook>;
     fn remove_book(&mut self , symbol : u32);
     fn get_book_count(&self)->usize;
@@ -17,7 +17,7 @@ pub struct MyEngine{
     // the engine will own all the orderbooks
     pub engine_id :usize ,
     pub book_count : usize, 
-    pub books : HashMap< u32 , OrderBook>,
+    pub books : HashMap<u32 , OrderBook>,
     pub event_publisher : crossbeam::channel::Sender<Event>,
     pub test_orderbook : OrderBook
 }
@@ -69,7 +69,7 @@ impl MyEngine{
                             continue;
                         }
                     };
-                    let mut my_order = Order::new(shm_order.order_id, order_side, shm_order.shares_qty, shm_order.price, shm_order.timestamp, shm_order.symbol);
+                    let mut my_order = Order::new(shm_order.user_id , shm_order.order_id, order_side, shm_order.shares_qty, shm_order.price, shm_order.timestamp, shm_order.symbol);
                     
                     if let Some(order_book) = self.get_book_mut(my_order.symbol){
                         let events = match order_side {
