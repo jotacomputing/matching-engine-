@@ -85,7 +85,7 @@ impl Default for SharedBalanceState {
 }
 pub struct MyBalanceManager{
     pub order_sender : crossbeam::channel::Sender<Order>,
-    pub fill_recv : crossbeam::channel::Receiver<Fill>,
+    pub fill_recv : crossbeam::channel::Receiver<Fills>,
     pub order_receiver : crossbeam::channel::Receiver<Order>,
     pub state : Arc<SharedBalanceState>,
 }
@@ -95,7 +95,7 @@ pub struct MyBalanceManager{
 //}
 
 impl MyBalanceManager{
-    pub fn new(order_sender : Sender<Order> , fill_recv :Receiver<Fill> , order_receiver : Receiver<Order>)->(Self , Arc<SharedBalanceState>){
+    pub fn new(order_sender : Sender<Order> , fill_recv :Receiver<Fills> , order_receiver : Receiver<Order>)->(Self , Arc<SharedBalanceState>){
         let shared_state = Arc::new(SharedBalanceState::new());
         (Self { 
             order_sender, 

@@ -57,7 +57,6 @@ impl MyEngine{
                             let _ = self.sender_to_balance_manager.send(match_result.fills.clone());
                             let _ = self.event_publisher.send(Event::MatchResult(match_result));
                             // TODO , SEPRATE MATCH RESULT FROM FILLS SO THAT WE CAN PUBLISHJ TO 2 DIFFERENT PLACES 
-                            
                         }
                     }
                 }

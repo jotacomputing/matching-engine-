@@ -2,6 +2,3 @@ syntax = "proto3";
 
 package rust-orderbook-2 ; 
 
-service BalanceManager{
-    rpc get_funds(BalanceRequest) returns (BalanceResponse);
-}
