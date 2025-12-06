@@ -155,10 +155,8 @@ impl MyBalanceManager{
         Ok(())
     }
 
-    //pub fn update_balances_after_trade(&self , order_fills : Fills)->Result<() , BalanceManagerError>{
-    //    // we get all the fills 
-    //    // fills have price , qty , taker_order_ id , and maker_order_id 
-    //    // for each fill we need to fetch the orders , using the order Manager for that partiuclar symbol 
-    //    // or we can include maker _ user id and taker user id in fills , and symbol too 
-    //}
+    pub fn update_balances_after_trade(&self , order_fills : Fills)->Result<() , BalanceManagerError>{
+        // we get all the fills 
+        // filss have now userids and symbol and price and qty so we can 
+    }
 }

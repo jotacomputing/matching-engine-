@@ -7,16 +7,16 @@ pub struct Fill{
     pub quantity : u32 ,
     // taker orderid -> incoming order tht caused the match 
     pub taker_order_id : OrderId,
-    // the order that was on the book that caused the match 
+    // maker -> the order that was on the book that caused the match 
     pub maker_order_id : OrderId , 
-
+    pub taker_side : Side ,
     pub maker_user_id : u64 ,
     pub taker_user_id : u64 , 
     pub symbol : u32
 }
 
 impl Fill{
-    pub fn new(price:u64 , quantity:u32 , taker_order_id : OrderId , maker_order_id : OrderId , maker_user_id : u64 ,  taker_user_id : u64 ,  symbol : u32) -> Self{
+    pub fn new(price:u64 , quantity:u32 , taker_order_id : OrderId , maker_order_id : OrderId , maker_user_id : u64 ,  taker_user_id : u64 ,  symbol : u32 , taker_side : Side) -> Self{
         Self{
              price  ,
              quantity , 
@@ -24,7 +24,8 @@ impl Fill{
              maker_order_id , 
              maker_user_id , 
              taker_user_id , 
-             symbol
+             symbol ,
+             taker_side
         }
     }
 

@@ -74,7 +74,8 @@ impl OrderBook{
                             maker_order_id : order_id , 
                             maker_user_id : user_id , 
                             taker_user_id : order.user_id , 
-                            symbol : self.symbol
+                            symbol : self.symbol,
+                            taker_side : order.side
                         });
                          self.manager.remove_order(order_id);
                          
@@ -92,7 +93,8 @@ impl OrderBook{
                             maker_order_id : order_id,
                             maker_user_id : user_id , 
                             taker_user_id : order.user_id , 
-                            symbol : self.symbol
+                            symbol : self.symbol,
+                            taker_side : order.side
                         });
                         order.shares_qty = 0 ; 
                         // take a mutable refrence and update the shares and then insert 
@@ -157,7 +159,8 @@ impl OrderBook{
                             maker_order_id : order_id,
                             maker_user_id : user_id , 
                             taker_user_id : order.user_id , 
-                            symbol : self.symbol
+                            symbol : self.symbol,
+                            taker_side : order.side
                         });
                         self.manager.remove_order(order_id);
                     }
@@ -174,7 +177,8 @@ impl OrderBook{
                             maker_order_id : order_id,
                             maker_user_id : user_id , 
                             taker_user_id : order.user_id , 
-                            symbol : self.symbol
+                            symbol : self.symbol,
+                            taker_side : order.side
                         });
                         order.shares_qty = 0 ; 
                         // take a mutable refrence and update the shares and then insert 
@@ -253,7 +257,8 @@ impl OrderBook{
                             maker_order_id : order_id,
                             maker_user_id : user_id , 
                             taker_user_id : order.user_id , 
-                            symbol : self.symbol
+                            symbol : self.symbol,
+                            taker_side : order.side
                         });
                         self.manager.remove_order(order_id);
                     }
@@ -270,7 +275,8 @@ impl OrderBook{
                             maker_order_id : order_id,
                             maker_user_id : user_id , 
                             taker_user_id : order.user_id , 
-                            symbol : self.symbol
+                            symbol : self.symbol,
+                            taker_side : order.side
                         });
                         order.shares_qty = 0 ; 
                         // take a mutable refrence and update the shares and then insert 
