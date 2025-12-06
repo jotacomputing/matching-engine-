@@ -15,7 +15,7 @@ use std::sync::atomic::{AtomicU64 , AtomicU32  , Ordering};
 use dashmap::DashMap;
 use crossbeam::channel::{Sender , Receiver};
 //use dashmap::DashMap;
-use crate::orderbook::types::{BalanceManagerError, Fills, MatchResult };
+use crate::orderbook::types::{BalanceManagerError, Fill, Fills, MatchResult };
 use crate::orderbook::order::{Order , Side};
 const MAX_USERS: usize = 10_000_000; // pre allocating for a max of 10 million users 
 const MAX_SYMBOLS : usize = 100 ; 
@@ -85,7 +85,7 @@ impl Default for SharedBalanceState {
 }
 pub struct MyBalanceManager{
     pub order_sender : crossbeam::channel::Sender<Order>,
-    pub fill_recv : crossbeam::channel::Receiver<MatchResult>,
+    pub fill_recv : crossbeam::channel::Receiver<Fill>,
     pub order_receiver : crossbeam::channel::Receiver<Order>,
     pub state : Arc<SharedBalanceState>,
 }
@@ -95,7 +95,7 @@ pub struct MyBalanceManager{
 //}
 
 impl MyBalanceManager{
-    pub fn new(order_sender : Sender<Order> , fill_recv :Receiver<MatchResult> , order_receiver : Receiver<Order>)->(Self , Arc<SharedBalanceState>){
+    pub fn new(order_sender : Sender<Order> , fill_recv :Receiver<Fill> , order_receiver : Receiver<Order>)->(Self , Arc<SharedBalanceState>){
         let shared_state = Arc::new(SharedBalanceState::new());
         (Self { 
             order_sender, 

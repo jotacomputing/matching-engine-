@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use crate::orderbook::order::{Order, Side};
-use crate::orderbook::types::Event ;
+use crate::orderbook::types::{Event, Fill} ;
 use crate::orderbook::order_book::OrderBook;
 use crate::shm::queue::Queue;
+use crossbeam::channel::{Sender};
 
 pub trait Engine{
     fn add_book(&mut self , symbol : u32);
@@ -18,12 +19,13 @@ pub struct MyEngine{
     pub engine_id :usize ,
     pub book_count : usize, 
     pub books : HashMap<u32 , OrderBook>,
-    pub event_publisher : crossbeam::channel::Sender<Event>,
-    pub test_orderbook : OrderBook
+    pub event_publisher : Sender<Event>,
+    pub test_orderbook : OrderBook,
+    pub sender_to_balance_manager : Sender<Fill>
 }
 
 impl MyEngine{
-    pub fn new(event_publisher :  crossbeam::channel::Sender<Event>, engine_id : usize)->Self {
+    pub fn new(event_publisher : Sender<Event>, engine_id : usize , sender_to_balance_manager: Sender<Fill>)->Self {
         // initialise the publisher channel here 
         
             Self{
@@ -31,7 +33,8 @@ impl MyEngine{
                 book_count : 0 ,
                 books : HashMap::new(),
                 event_publisher  ,
-                test_orderbook : OrderBook::new(100)
+                test_orderbook : OrderBook::new(100),
+                sender_to_balance_manager
             } 
             
     }
