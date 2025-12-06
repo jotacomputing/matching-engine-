@@ -155,8 +155,75 @@ impl MyBalanceManager{
         Ok(())
     }
 
-    pub fn update_balances_after_trade(&self , order_fills : Fills)->Result<() , BalanceManagerError>{
-        // we get all the fills 
-        // filss have now userids and symbol and price and qty so we can 
+    pub fn update_balances_after_trade(&self, order_fills: Fills) -> Result<(), BalanceManagerError> {
+        for fill in order_fills.fills {
+            
+            let maker_index = self.get_user_index(fill.maker_user_id)?;
+            let maker_balance = self.get_user_balance(maker_index);
+            let maker_holdings = self.get_user_holdings(maker_index);
+            
+            let taker_index = self.get_user_index(fill.taker_user_id)?;
+            let taker_balance = self.get_user_balance(taker_index);
+            let taker_holdings = self.get_user_holdings(taker_index);
+            
+            let fill_value = fill.price * fill.quantity as u64;
+            
+            match fill.taker_side {
+                Side::Ask => {
+                    // Taker is selling , jo order aya was sell order , order book pe(maker) buy order 
+                    
+                    // add money , he sold 
+                    let taker_avail_bal = taker_balance.available_balance.load(Ordering::Relaxed);
+                    taker_balance.available_balance
+                        .store(taker_avail_bal + fill_value, Ordering::Relaxed);
+                    
+                    // remove holdings from resevred
+                    let taker_reserved_holdings = taker_holdings.reserved_holdings[fill.symbol as usize]
+                        .load(Ordering::Relaxed);
+                    taker_holdings.reserved_holdings[fill.symbol as usize]
+                        .store(taker_reserved_holdings - fill.quantity, Ordering::Relaxed);
+                    
+
+                    let maker_reserved_bal = maker_balance.reserved_balance.load(Ordering::Relaxed);
+                    maker_balance.reserved_balance
+                        .store(maker_reserved_bal - fill_value, Ordering::Relaxed);
+                    
+                    // add shares , he bough 
+                    let maker_avail_holdings = maker_holdings.available_holdings[fill.symbol as usize]
+                        .load(Ordering::Relaxed);
+                    maker_holdings.available_holdings[fill.symbol as usize]
+                        .store(maker_avail_holdings + fill.quantity, Ordering::Relaxed);
+                }
+                
+                Side::Bid => {
+                    // Taker is buying , incoming is a buying order 
+                    
+                    
+                    let taker_reserved_bal = taker_balance.reserved_balance.load(Ordering::Relaxed);
+                    taker_balance.reserved_balance
+                        .store(taker_reserved_bal - fill_value, Ordering::Relaxed);
+                    
+                   
+                    let taker_avail_holdings = taker_holdings.available_holdings[fill.symbol as usize]
+                        .load(Ordering::Relaxed);
+                    taker_holdings.available_holdings[fill.symbol as usize]
+                        .store(taker_avail_holdings + fill.quantity, Ordering::Relaxed);
+                    
+                    
+                    let maker_avail_bal = maker_balance.available_balance.load(Ordering::Relaxed);
+                    maker_balance.available_balance
+                        .store(maker_avail_bal + fill_value, Ordering::Relaxed);
+                    
+                    
+                    let maker_reserved_holdings = maker_holdings.reserved_holdings[fill.symbol as usize]
+                        .load(Ordering::Relaxed);
+                    maker_holdings.reserved_holdings[fill.symbol as usize]
+                        .store(maker_reserved_holdings - fill.quantity, Ordering::Relaxed);
+                }
+            }
+        }
+        
+        Ok(())
     }
+    
 }
