@@ -45,11 +45,6 @@ impl ShmReader {
                             continue;
                         }
                     };
-                   
-                    if shm_order.symbol >= 100 {
-                        eprintln!("[SHM Reader] Invalid symbol: {}", shm_order.symbol);
-                        continue;
-                    }
                     
                     
                     let order = Order::new(

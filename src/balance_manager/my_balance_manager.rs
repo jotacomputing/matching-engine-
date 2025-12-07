@@ -17,7 +17,7 @@ use crossbeam::channel::{Receiver, SendError, Sender};
 //use dashmap::DashMap;
 use crate::orderbook::types::{BalanceManagerError, Fill, Fills, MatchResult };
 use crate::orderbook::order::{self, Order, Side};
-const MAX_USERS: usize = 10_000_000; // pre allocating for a max of 10 million users 
+const MAX_USERS: usize = 100; // pre allocating for a max of 10 million users 
 const MAX_SYMBOLS : usize = 100 ; 
 const DEFAULT_BALANCE : u64 = 10000;
 #[repr(C)]

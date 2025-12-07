@@ -50,8 +50,6 @@ impl MyEngine{
                             Side::Bid => order_book.match_bid(&mut recieved_order),
                             Side::Ask => order_book.match_ask(&mut recieved_order)
                         };
-
-                        
                         //println!("{:?}" , events);
                         if let Ok(match_result)=events{
                             let _ = self.sender_to_balance_manager.send(match_result.fills.clone());

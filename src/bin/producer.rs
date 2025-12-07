@@ -51,7 +51,7 @@ fn main() {
         user_id  : 10 , 
         order_id: 0,
         shares_qty: 100,
-        symbol: 100,
+        symbol: 0,
         status: 0,
         side: 0,
         price: 0,
