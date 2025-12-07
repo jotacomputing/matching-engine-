@@ -13,10 +13,10 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64 , AtomicU32  , Ordering};
 use dashmap::DashMap;
-use crossbeam::channel::{Receiver, SendError, Sender};
+use crossbeam::channel::{Receiver, Sender};
 //use dashmap::DashMap;
-use crate::orderbook::types::{BalanceManagerError, Fill, Fills, MatchResult };
-use crate::orderbook::order::{self, Order, Side};
+use crate::orderbook::types::{BalanceManagerError, Fills, };
+use crate::orderbook::order::{ Order, Side};
 const MAX_USERS: usize = 100; // pre allocating for a max of 10 million users 
 const MAX_SYMBOLS : usize = 100 ; 
 const DEFAULT_BALANCE : u64 = 10000;
@@ -89,10 +89,6 @@ pub struct MyBalanceManager{
     pub order_receiver : crossbeam::channel::Receiver<Order>,
     pub state : Arc<SharedBalanceState>,
 }
-//pub trait BalanceManagerTrait{
-//    fn check_and_lock_funds(order : Order)->Result<() , BalanceManagerError>;
-//    fn update_funds_after_trade(order : Order)->Result<() , BalanceManagerError>;
-//}
 
 impl MyBalanceManager{
     pub fn new(order_sender : Sender<Order> , fill_recv :Receiver<Fills> , order_receiver : Receiver<Order>)->(Self , Arc<SharedBalanceState>){

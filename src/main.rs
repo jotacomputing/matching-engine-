@@ -38,6 +38,7 @@ fn main(){
         core_affinity::set_for_current(core_affinity::CoreId { id: 6 });
         let mut my_balance_manager = MyBalanceManager::new(order_sender_clone, fill_reciver_clone, order_reciever_clone2);
         my_balance_manager.0.run_balance_manager();
+        // my_balance_manager.1 is the shared state which needs to be passed to the GRPC server for normal queries 
     });
 
 

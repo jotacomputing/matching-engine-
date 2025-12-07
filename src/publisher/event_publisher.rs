@@ -2,15 +2,12 @@ use crossbeam::channel::Receiver;
 use crate::orderbook::types::Event;
 
 pub struct EventPublisher {
-    receiver: Receiver<Event>,
-    
+    receiver: Receiver<Event>,   
 }
-
 impl EventPublisher {
     pub fn new(rx: Receiver<Event>) -> Self {
         Self { receiver: rx }
     }
-
     pub fn start_publisher(&mut self) {
         let mut batch = Vec::with_capacity(10_000);
         let mut count = 0u64;
@@ -18,7 +15,6 @@ impl EventPublisher {
         let mut last_log = std::time::Instant::now();
         
         println!("[PUBLISHER] Started (crossbeam batched mode)");
-        
         loop {
             batch.clear();
             
