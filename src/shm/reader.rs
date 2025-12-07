@@ -22,7 +22,7 @@ impl ShmReader {
     }
     
     pub fn run_reader(&mut self) {
-        eprintln!("[SHM Reader] Starting on Core 0");
+        eprintln!("[SHM Reader] Starting on Core 2");
         
         
         let mut count = 0u64;
@@ -57,6 +57,8 @@ impl ShmReader {
                         shm_order.symbol,
                     );
                     
+                    println!("order from shm , {:?}" , order);
+                    println!("Sending to balance manager ");
                     // send to balance manager 
                     match self.order_sender_to_balance_manager.try_send(order) {
                         Ok(_) => {}

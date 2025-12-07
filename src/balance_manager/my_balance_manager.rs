@@ -224,15 +224,32 @@ impl MyBalanceManager{
 
 
     pub fn run_balance_manager(&mut self){
+        eprintln!("[PUBLISHER] Started (crossbeam batched mode) on core 6");
+        let mut count = 0u64;
+        let mut last_log = std::time::Instant::now();
         loop {
-            match  self.order_receiver.recv() {
+            match self.fill_recv.try_recv() {
+                Ok(recieved_fill)=>{
+                    let _ = self.update_balances_after_trade(recieved_fill);
+                },
+                Err(_)=>{
+
+                }
+            }
+            
+            match  self.order_receiver.try_recv() {
                 Ok(recieved_order)=>{
+                    println!("received order {:?}" , recieved_order);
+                    println!("starting to reserve funds");
+                    
                     match self.check_and_lock_funds(recieved_order) {
                         Ok(_)=>{
+                            println!("sendint to engine");
                             match self.order_sender.send(recieved_order)  {
                                 Ok(_)=>{} , 
                                 Err(_)=>{}
                             }
+                            count+=1;
                         }
                         Err(_)=>{}
                     }
@@ -241,6 +258,12 @@ impl MyBalanceManager{
                     eprintln!("channel error");
                 }
             } 
+            if last_log.elapsed().as_secs() >= 2 {
+                let rate = count as f64 / last_log.elapsed().as_secs_f64();
+                eprintln!("[Balance Manager] {:.2}M orders/sec", rate / 1_000_000.0);
+                count = 0;
+                last_log = std::time::Instant::now();
+            }
         }
     }
     

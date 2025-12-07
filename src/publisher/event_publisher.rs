@@ -14,7 +14,7 @@ impl EventPublisher {
         let mut total_batches = 0u64;
         let mut last_log = std::time::Instant::now();
         
-        println!("[PUBLISHER] Started (crossbeam batched mode)");
+        println!("[PUBLISHER] Started (crossbeam batched mode) on core 5");
         loop {
             batch.clear();
             

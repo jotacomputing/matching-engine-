@@ -28,6 +28,7 @@ fn main(){
 
     // SHM READER ONLY REQUIRES AN ORDER SENDER 
     let shm_reader_handle = std::thread::spawn(move||{
+        core_affinity::set_for_current(core_affinity::CoreId { id: 2 });
         let my_shm_reader = ShmReader::new(order_sender_clone2);
         my_shm_reader.unwrap().run_reader();
     });

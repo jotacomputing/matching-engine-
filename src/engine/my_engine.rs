@@ -41,18 +41,23 @@ impl MyEngine{
             
     }
     pub fn run_engine(&mut self ){
-        
+        eprintln!("[ENGINE] Started (crossbeam batched mode) on core 1");
+
+        let mut count = 0u64;
+        let mut last_log = std::time::Instant::now();
         loop {
             match self.order_receiver.recv() {
                 Ok(mut recieved_order)=>{
+                    println!("recived order {:?}" , recieved_order);
                     if let Some(order_book) = self.get_book_mut(recieved_order.symbol){
                         let events = match recieved_order.side {
                             Side::Bid => order_book.match_bid(&mut recieved_order),
                             Side::Ask => order_book.match_ask(&mut recieved_order)
                         };
-                        //println!("{:?}" , events);
+                        println!("{:?}" , events);
                         if let Ok(match_result)=events{
                             let _ = self.sender_to_balance_manager.send(match_result.fills.clone());
+                            println!("sending fills to balance manager ");
                             let _ = self.event_publisher.send(Event::MatchResult(match_result));
                         }
                     }
@@ -60,6 +65,13 @@ impl MyEngine{
                 Err(_)=>{
 
                 }
+            }
+
+            if last_log.elapsed().as_secs() >= 2 {
+                let rate = count as f64 / last_log.elapsed().as_secs_f64();
+                eprintln!("[Balance Manager] {:.2}M orders/sec", rate / 1_000_000.0);
+                count = 0;
+                last_log = std::time::Instant::now();
             }
         }
         
