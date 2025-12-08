@@ -33,8 +33,8 @@ impl ShmReader {
             match self.queue.dequeue() {
             
                 Ok(Some(shm_order)) => {
-                    println!("=== DEQUEUED order_id={} timestamp={} ===", 
-                        shm_order.order_id, shm_order.timestamp);
+                    //println!("=== DEQUEUED order_id={} timestamp={} ===", 
+                     //   shm_order.order_id, shm_order.timestamp);
                     let order_side = match  shm_order.side {
                         0 => {
                             Side::Bid
@@ -56,11 +56,11 @@ impl ShmReader {
                         shm_order.symbol,
                     );
                     
-                    println!("order from shm recv ");
-                    println!("Sending to balance manager ");
+                    //println!("order from shm recv ");
+                    //println!("Sending to balance manager ");
                     // send to balance manager 
-                    match self.order_sender_to_balance_manager.try_send(order) {
-                        Ok(_) => {println!("Sent to Channle")}
+                    match self.order_sender_to_balance_manager.send(order) {
+                        Ok(_) => {}
                         Err(e) => {
                             eprintln!("[SHM Reader] Channel full, dropping order: {:?}", e);
                         }

@@ -22,7 +22,7 @@ impl EventPublisher {
             match self.receiver.recv() {
 
                 Ok(event) => {
-                    println!("publisher receieved fills");
+                    //println!("publisher receieved fills");
                     batch.push(event);
                     count += 1;
                 }

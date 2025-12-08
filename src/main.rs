@@ -39,7 +39,7 @@ fn main(){
     let balance_manager_handle = std::thread::spawn(move ||{
         core_affinity::set_for_current(core_affinity::CoreId { id: 6 });
         let mut my_balance_manager = MyBalanceManager::new(bm_to_engine_sender_clone, fill_reciver_clone, shm_to_bm_receiver_clone);
-        my_balance_manager.0.add_test_users();
+        my_balance_manager.0.add_throughput_test_users();
         my_balance_manager.0.run_balance_manager();
         // my_balance_manager.1 is the shared state which needs to be passed to the GRPC server for normal queries 
     });

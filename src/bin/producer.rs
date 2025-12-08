@@ -11,8 +11,8 @@ fn main() {
     // ==== Open queue ====
     let mut q = Queue::open("/tmp/sex").expect("Failed to open queue");
 
-    println!("[OMS] Rust Producer - OPTIMIZED");
-    println!("[OMS] Using concentrated price levels");
+    println!("[OMS] Rust Producer - THROUGHPUT TEST MODE");
+    println!("[OMS] Using concentrated price levels with alternating users");
 
     static ATOMIC_COUNT: AtomicI64 = AtomicI64::new(0);
 
@@ -48,18 +48,19 @@ fn main() {
 
     // ==== Pre-allocated Order (Pool-like reuse) ====
     let mut order = ShmOrder {
-        user_id  : 10 , 
+        user_id: 10,  // Will alternate between 10 and 20
         order_id: 0,
-        shares_qty: 100,
+        shares_qty: 1,
         symbol: 0,
         status: 0,
-        side: 0,
-        price: 0,
+        side: 0,      // 0 = buy, 1 = sell
+        price: 10,
         timestamp: current_time_ns(),
         _padding: [0; 14],
     };
 
-    let prices = [49999_u64, 50000, 50001];
+    // Price levels around 50000
+    let prices = [9_u64, 10, 11];
 
     // ==== Producer Loop ====
     let mut count = 0u64;
@@ -69,9 +70,21 @@ fn main() {
         count += 1;
 
         order.order_id = count;
-        order.side = (count % 2) as u8;
+        
+        // Alternate between users and sides
+        // Even count: User 10 buys (side=0)
+        // Odd count:  User 20 sells (side=1)
+        if count % 2 == 0 {
+            order.user_id = 10;
+            order.side = 0; // Buy
+        } else {
+            order.user_id = 20;
+            order.side = 1; // Sell
+        }
+        
+        // Cycle through 3 price levels
         order.price = prices[((count / 2) % 3) as usize];
-        order.timestamp = base_timestamp; // stable timestamp
+        order.timestamp = base_timestamp;
 
         let mut attempts = 0;
 

@@ -48,18 +48,18 @@ impl MyEngine{
         loop {
             match self.order_receiver.recv() {
                 Ok(mut recieved_order)=>{
-                    println!("recived order to engine ");
+                    //println!("recived order to engine ");
                     if let Some(order_book) = self.get_book_mut(recieved_order.symbol){
                         let events = match recieved_order.side {
                             Side::Bid => order_book.match_bid(&mut recieved_order),
                             Side::Ask => order_book.match_ask(&mut recieved_order)
                         };
-                        println!("order matched events created ");
+                       // println!("order matched events created ");
                         if let Ok(match_result)=events{
                             let _ = self.sender_to_balance_manager.send(match_result.fills.clone());
-                            println!("sending fills to balance manager ");
+                         //   println!("sending fills to balance manager ");
                             let _ = self.event_publisher.send(Event::MatchResult(match_result));
-                            println!("sedning events to publisher ");
+                           // println!("sedning events to publisher ");
                         }
                         count += 1;
                     }
@@ -71,7 +71,7 @@ impl MyEngine{
 
             if last_log.elapsed().as_secs() >= 2 {
                 let rate = count as f64 / last_log.elapsed().as_secs_f64();
-                eprintln!("[Balance Manager] {:.2}M orders/sec", rate / 1_000_000.0);
+                eprintln!("[ENGINE] {:.2}M orders/sec", rate / 1_000_000.0);
                 count = 0;
                 last_log = std::time::Instant::now();
             }

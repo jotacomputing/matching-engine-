@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::sync::atomic::Ordering;
     use crate::balance_manager::my_balance_manager::{MyBalanceManager};
     use crate::orderbook::types::BalanceManagerError;
