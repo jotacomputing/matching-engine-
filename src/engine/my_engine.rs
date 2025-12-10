@@ -133,12 +133,13 @@ impl STEngine{
     }
     #[inline(always)]
     pub fn process_order(&mut self , mut recieved_order : Order)->Option<MatchResult>{
-        
+      
         if let Some(order_book) = self.get_book_mut(recieved_order.symbol){
             let events = match recieved_order.side {
                 Side::Bid => order_book.match_bid(&mut recieved_order),
                 Side::Ask => order_book.match_ask(&mut recieved_order)
             };
+           
             return events.ok();
            // println!("order matched events created ")
         }

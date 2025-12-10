@@ -401,7 +401,7 @@ impl STbalanceManager{
         let user_index = self.get_user_index(order.user_id)?;   // fatal error , return immidieately to the function who is calling
         //println!("user exists");
         //println!("user balance ");
-        //println!("user holdings");
+    
         
         match order.side {
             Side::Ask =>{
@@ -437,6 +437,7 @@ impl STbalanceManager{
     }
     #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn update_balances_after_trade(&mut self, order_fills: Fills) -> Result<(), BalanceManagerError> {
+        
         for fill in order_fills.fills {
             
             let maker_index = self.get_user_index(fill.maker_user_id)?;

@@ -113,8 +113,6 @@ impl StShmReader{
         match self.queue.dequeue() {
             
             Ok(Some(shm_order)) => {
-
-
                 let order_side = match  shm_order.side {
                     0 => {
                         Side::Bid

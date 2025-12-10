@@ -41,17 +41,22 @@ impl TradingCore {
                 }
             }
             for order in self.order_batch.drain(..){
+                
                 match self.balance_manager.check_and_lock_funds(order) {
+                    
                     Ok(_) => {
+                        
                         // Process order in engine
                         match self.engine.process_order(order) {
                             Some(match_result) => {
                                 // Update balances from fills
+                                
                                 if let Err(e) = self.balance_manager
                                     .update_balances_after_trade(match_result.fills)
                                 {
                                     eprintln!("[Trading Core] Balance update error: {:?}", e);
                                 }
+                                
                             }
                             None => {
                                 eprintln!("[Trading Core] Failed to process order");

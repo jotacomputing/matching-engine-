@@ -12,7 +12,8 @@ pub struct OrderBook{
     pub askside : BookSide,
     pub bidside : BookSide,
     pub last_trade_price : AtomicU64,
-    pub manager : OrderManager
+    pub manager : OrderManager,
+    pub fill_buffer : Vec<Fill>
 }
 
 impl OrderBook{
@@ -22,7 +23,8 @@ impl OrderBook{
             askside: BookSide::new(Side::Ask),
             bidside: BookSide::new(Side::Bid) ,
             last_trade_price: AtomicU64::new(0),
-            manager : OrderManager::new()
+            manager : OrderManager::new(),
+            fill_buffer : Vec::with_capacity(50),
         }
     }
 
@@ -37,13 +39,13 @@ impl OrderBook{
     pub fn match_market_order(&mut self , order:&mut Order )->Result<MatchResult , OrderBookError>{
         // wejust need to fill the shares 
         //if a very large maket order comes and there are not enough shares for it to eat , its canceled
-
+        self.fill_buffer.clear();
         let opposite_side = match order.side{
             Side::Ask => &mut self.bidside , 
             Side::Bid => &mut self.askside,
         };  // took a mutable refrence of the side owned by the orderbook 
 
-        let mut fills = Fills::new();
+        //let mut fills = Fills::new();
 
         while order.shares_qty > 0 {
             let best_price = match opposite_side.get_best_price() {
@@ -67,7 +69,7 @@ impl OrderBook{
                         // we get a copy of shares , but we dont need to update the actual because we are deleting
                         let consumed = shares;
                         order.shares_qty = order.shares_qty.saturating_sub(shares);
-                        fills.add(Fill{
+                        self.fill_buffer.push(Fill{
                             price : best_price ,
                             quantity : consumed , 
                             taker_order_id : order.order_id,
@@ -86,7 +88,7 @@ impl OrderBook{
                         let consumed = order.shares_qty;
                         self.manager.get_mut(oldest_order_key).unwrap().shares_qty =  self.manager.get_mut(oldest_order_key).unwrap().shares_qty.saturating_sub(consumed);
                         // changed in the orignal map too 
-                        fills.add(Fill{
+                        self.fill_buffer.push(Fill{
                             price : best_price ,
                             quantity : consumed , 
                             taker_order_id : order.order_id,
@@ -113,15 +115,15 @@ impl OrderBook{
         }
 
         Ok(MatchResult{
-            order_id : order.order_id , fills , remaining_qty:0
+            order_id : order.order_id , fills : {Fills { fills: self.fill_buffer.clone() }} , remaining_qty:0
         }) 
     }
 
     #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn match_bid(&mut self , order: &mut Order)->Result<MatchResult , OrderBookError>{
        // println!("recived the order , matching now");
-        
-        let mut fills =  Fills::new();
+       self.fill_buffer.clear();
+        //let mut fills =  Fills::new();
         let opposite_side = &mut  self.askside ;
         // we have a bid to match , the best price shud be the loweest ask 
         
@@ -152,7 +154,7 @@ impl OrderBook{
                         // we get a copy of shares , but we dont need to update the actual because we are deleting
                         let consumed = shares;
                         order.shares_qty = order.shares_qty.saturating_sub(shares);
-                        fills.add(Fill{
+                        self.fill_buffer.push(Fill{
                             price : best_price ,
                             quantity : consumed , 
                             taker_order_id : order.order_id,
@@ -170,7 +172,7 @@ impl OrderBook{
                         let consumed = order.shares_qty;
                         self.manager.get_mut(oldest_order_key).unwrap().shares_qty -= consumed;
                         // changed in the orignal map too 
-                        fills.add(Fill{
+                        self.fill_buffer.push(Fill{
                             price : best_price ,
                             quantity : consumed , 
                             taker_order_id : order.order_id,
@@ -209,21 +211,22 @@ impl OrderBook{
             };
             self.bidside.insert(remaining_order , &mut self.manager);
         }
-        if !fills.fills.is_empty(){
+        if !self.fill_buffer.is_empty(){
             self.last_trade_price.store(
-                fills.fills.last().unwrap().price,
+                self.fill_buffer.last().unwrap().price,
                 Ordering::Relaxed,
             );
         }
 
         Ok(MatchResult{
-            order_id : order.order_id , fills , remaining_qty : order.shares_qty
+            order_id : order.order_id , fills : {Fills { fills: self.fill_buffer.clone() }} , remaining_qty : order.shares_qty
         })
     }
     #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn match_ask(&mut self , order: &mut Order)->Result<MatchResult , OrderBookError>{
        // println!("recived the order , matching now");
-        let mut fills = Fills::new();
+       // let mut fills = Fills::new();
+       self.fill_buffer.clear();
         let opposite_side = &mut  self.bidside ;
         // we have a bid to match , the best price shud be the loweest ask 
         
@@ -250,7 +253,7 @@ impl OrderBook{
                         // we get a copy of shares , but we dont need to update the actual because we are deleting
                         let consumed = shares;
                         order.shares_qty = order.shares_qty.saturating_sub(shares);
-                        fills.add(Fill{
+                        self.fill_buffer.push(Fill{
                             price : best_price ,
                             quantity : consumed , 
                             taker_order_id : order.order_id,
@@ -268,7 +271,7 @@ impl OrderBook{
                         let consumed = order.shares_qty;
                         self.manager.get_mut(oldest_order_key).unwrap().shares_qty -= consumed;
                         // changed in the orignal map too 
-                        fills.add(Fill{
+                        self.fill_buffer.push(Fill{
                             price : best_price ,
                             quantity : consumed , 
                             taker_order_id : order.order_id,
@@ -307,14 +310,14 @@ impl OrderBook{
             };
             self.askside.insert(remaining_order, &mut self.manager);
         }
-        if !fills.fills.is_empty(){
+        if !self.fill_buffer.is_empty(){
             self.last_trade_price.store(
-                fills.fills.last().unwrap().price,
+                self.fill_buffer.last().unwrap().price,
                 Ordering::Relaxed,
             );
         }
         Ok(MatchResult{
-            order_id : order.order_id , fills , remaining_qty : order.shares_qty
+            order_id : order.order_id , fills : {Fills { fills: self.fill_buffer.clone() }} , remaining_qty : order.shares_qty
         })
     }
 
