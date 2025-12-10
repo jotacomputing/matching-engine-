@@ -21,6 +21,7 @@ rustc-hash = { version = "2.1" }
 tonic = "0.14.2"
 prost = "0.14.1"
 hotpath = "0.8"
+crossbeam-utils = "0.8.21"
 
 
 [[bin]]

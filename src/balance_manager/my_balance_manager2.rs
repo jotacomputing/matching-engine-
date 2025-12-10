@@ -10,7 +10,9 @@
 // The balanaces and holdings will be in a shared state for the grpc server and the balance manager 
 // avalable means free balance or holdings that can be reserved 
 
-
+use std::sync::Arc;
+use crossbeam::queue::ArrayQueue;
+use crossbeam_utils::Backoff;
 // no shared state in this approach , 
 use dashmap::DashMap;
 use crossbeam::channel::{Receiver, Sender};
@@ -93,12 +95,16 @@ pub struct MyBalanceManager2{
     pub state : BalanceState,
     pub balance_query_receiver: Receiver<BalanceQuery>,
     pub holdings_query_receiver: Receiver<HoldingsQuery>,
+    pub fill_queue : Arc<ArrayQueue<Fills>>,
+    pub shm_bm_order_queue : Arc<ArrayQueue<Order>>,
+    pub bm_engine_order_queue : Arc<ArrayQueue<Order>>
 }
 
 impl MyBalanceManager2{
-    pub fn new(order_sender : Sender<Order> , fill_recv :Receiver<Fills> , order_receiver : Receiver<Order> , balance_query_receiver: Receiver<BalanceQuery>, holdings_query_receiver: Receiver<HoldingsQuery>)->Self{
+    pub fn new(order_sender : Sender<Order> , fill_recv :Receiver<Fills> , order_receiver : Receiver<Order> , balance_query_receiver: Receiver<BalanceQuery>, holdings_query_receiver: Receiver<HoldingsQuery> , fill_queue : Arc<ArrayQueue<Fills>>,shm_bm_order_queue : Arc<ArrayQueue<Order>>,bm_engine_order_queue : Arc<ArrayQueue<Order>>)->Self{
         let balance_state = BalanceState::new();
-        Self { order_sender, fill_recv, order_receiver, state: balance_state , balance_query_receiver , holdings_query_receiver }
+        Self { order_sender, fill_recv, order_receiver, state: balance_state , balance_query_receiver , holdings_query_receiver
+        ,fill_queue , shm_bm_order_queue , bm_engine_order_queue }
     }
     pub fn get_user_index(&self , user_id : u64 )->Result<u32 , BalanceManagerError>{
         self.state.user_id_to_index
@@ -217,117 +223,108 @@ impl MyBalanceManager2{
     }
 
     #[hotpath::measure]
-    pub fn run_balance_manager(&mut self){
-        eprintln!("[balance maager] Started (crossbeam batched mode) on core 6 , the second manager ");
+    #[hotpath::measure]
+pub fn run_balance_manager(&mut self) {
+    const BATCH_ORDERS: usize = 64;
 
-        let mut count = 0u64;
-        let mut last_log = std::time::Instant::now();
-        let mut channel_recv_time = std::time::Duration::ZERO;
-        let mut channel_send_time = std::time::Duration::ZERO;
-        let mut lock_funds_time = std::time::Duration::ZERO;
-        let mut update_balance_time = std::time::Duration::ZERO;
-        let mut idle_time = std::time::Duration::ZERO;
-        loop {
+    eprintln!("[balance manager] Started on core (batched, prioritized fills)"); 
 
-            let fill_start = std::time::Instant::now();
-            match self.fill_recv.try_recv() {
-                
-                Ok(recieved_fill)=>{
-                    channel_recv_time += fill_start.elapsed();
-                    let update_start = std::time::Instant::now();
-                    //println!("fills recdived , updating balances ");
-                    let _ = self.update_balances_after_trade(recieved_fill);
-                    update_balance_time += update_start.elapsed();
-                },
-                Err(_)=>{
+    let mut count: u64 = 0;
+    let mut last_log = std::time::Instant::now();
+    let mut channel_recv_time = std::time::Duration::ZERO;
+    let mut channel_send_time = std::time::Duration::ZERO;
+    let mut lock_funds_time = std::time::Duration::ZERO;
+    let mut update_balance_time = std::time::Duration::ZERO;
 
-                }
-            }
-            let recv_start = std::time::Instant::now();
-            match  self.order_receiver.try_recv() {
-                Ok(recieved_order)=>{
-                    channel_recv_time += recv_start.elapsed();
-                    //println!("received order ");
-                    //println!("starting to reserve funds");
-//
-                    //println!("\n>>> BM received: order_id={} user_id={} symbol={} qty={} price={}", 
-                    //    recieved_order.order_id,
-                    //    recieved_order.user_id, 
-                    //    recieved_order.symbol,
-                    //    recieved_order.shares_qty,
-                    //    recieved_order.price);
+    let mut backoff = Backoff::new();
+
+    loop {
+        let loop_start = std::time::Instant::now();
+
+        // 1) Drain all fills first (highest priority) — drain loop (fast)
+        while let Some(recieved_fill) = self.fill_queue.pop() {
+            let update_start = std::time::Instant::now();
+            let _ = self.update_balances_after_trade(recieved_fill);
+            update_balance_time += update_start.elapsed();
+            backoff.reset();
+        }
+
+        // 2) Process up to BATCH_ORDERS new orders (so fills remain highest priority, but orders are not starved)
+        let mut processed = 0usize;
+        while processed < BATCH_ORDERS {
+            match self.shm_bm_order_queue.pop() {
+                Some(recieved_order) => {
                     let lock_start = std::time::Instant::now();
                     match self.check_and_lock_funds(recieved_order) {
-                        Ok(_)=>{
+                        Ok(()) => {
                             lock_funds_time += lock_start.elapsed();
-                            //println!("sendint to engine");
                             let send_start = std::time::Instant::now();
-                            match self.order_sender.send(recieved_order)  {
-                                Ok(_)=>{ channel_send_time += send_start.elapsed();} , 
-                                Err(_)=>{}
+                            if self.bm_engine_order_queue.push(recieved_order).is_err() {
+                                // engine queue full — record and drop or handle backpressure
+                                // one-time log to avoid spam
+                                eprintln!("[BM] bm_engine queue full — order dropped or backpressure needed");
+                            } else {
+                                channel_send_time += send_start.elapsed();
                             }
-                            count+=1;
+                            count += 1;
                         }
-                        Err(BalanceManagerError)=>{
-                           eprint!("{:?}" , BalanceManagerError);
+                        Err(e) => {
+                            // insufficient funds — drop or log minimal
+                            //eprintln!("[BM] Insufficient funds: {:?}", e);
                         }
                     }
+                    processed += 1;
+                    backoff.reset();
                 }
-                Err(_)=>{
-                    //eprintln!("channel error");
-                }
-            } 
-
-            match self.balance_query_receiver.try_recv() {
-                Ok(_)=>{
-                    // call the grpc qury handler , will take in a balance query and will repond though the one shot channel created iside the query 
-                },
-                Err(_)=>{
-
-                }
-            }
-
-            match self.holdings_query_receiver.try_recv() {
-                Ok(_)=>{
-                    // call the grpc qury handler , will take in a holding query and will repond though the one shot channel created iside the query 
-                },
-                Err(_)=>{
-
-                }
-            }
-            if last_log.elapsed().as_secs() >= 2 {
-                let total_time = last_log.elapsed();
-                let rate = count as f64 / total_time.as_secs_f64();
-                
-                eprintln!("\n[Balance Manager2] Performance Report:");
-                eprintln!("  Throughput:     {:.2}M orders/sec", rate / 1_000_000.0);
-                eprintln!("  Channel recv:   {:.1}% ({:.3}s)", 
-                    channel_recv_time.as_secs_f64() / total_time.as_secs_f64() * 100.0,
-                    channel_recv_time.as_secs_f64());
-                eprintln!("  Channel send:   {:.1}% ({:.3}s)", 
-                    channel_send_time.as_secs_f64() / total_time.as_secs_f64() * 100.0,
-                    channel_send_time.as_secs_f64());
-                eprintln!("  Lock funds:     {:.1}% ({:.3}s)", 
-                    lock_funds_time.as_secs_f64() / total_time.as_secs_f64() * 100.0,
-                    lock_funds_time.as_secs_f64());
-                eprintln!("  Update balance: {:.1}% ({:.3}s)", 
-                    update_balance_time.as_secs_f64() / total_time.as_secs_f64() * 100.0,
-                    update_balance_time.as_secs_f64());
-                eprintln!("  Idle time:      {:.1}% ({:.3}s)", 
-                    idle_time.as_secs_f64() / total_time.as_secs_f64() * 100.0,
-                    idle_time.as_secs_f64());
-                
-                // Reset counters
-                count = 0;
-                channel_recv_time = std::time::Duration::ZERO;
-                channel_send_time = std::time::Duration::ZERO;
-                lock_funds_time = std::time::Duration::ZERO;
-                update_balance_time = std::time::Duration::ZERO;
-                idle_time = std::time::Duration::ZERO;
-                last_log = std::time::Instant::now();
+                None => break,
             }
         }
+
+        // 3) If nothing processed this iteration, backoff to avoid 100% busy spin
+        if processed == 0 {
+            if self.fill_queue.is_empty() && self.shm_bm_order_queue.is_empty() {
+                backoff.snooze(); // exponential backoff with pause/yield
+            } else {
+                // There is some work but was not processed due to conditions; do a light hint
+                std::hint::spin_loop();
+            }
+        }
+
+        // 4) Logs (2s)
+        if last_log.elapsed().as_secs() >= 2 {
+            let total_time = last_log.elapsed();
+            let rate = count as f64 / total_time.as_secs_f64();
+            eprintln!("\n[Balance Manager] Report:");
+            eprintln!("  Throughput:     {:.3} orders/sec ({:.3}M)", rate, rate / 1_000_000.0);
+            eprintln!("  channel_send:   {:.6}s", channel_send_time.as_secs_f64());
+            eprintln!("  lock_funds:     {:.6}s", lock_funds_time.as_secs_f64());
+            eprintln!("  update_balance: {:.6}s", update_balance_time.as_secs_f64());
+
+            // queue lengths & pointers
+            eprintln!("  shm_bm_order_queue ptr={:p} len={} cap={}",
+                Arc::as_ptr(&self.shm_bm_order_queue),
+                self.shm_bm_order_queue.len(),
+                self.shm_bm_order_queue.capacity());
+            eprintln!("  bm_engine_order_queue ptr={:p} len={} cap={}",
+                Arc::as_ptr(&self.bm_engine_order_queue),
+                self.bm_engine_order_queue.len(),
+                self.bm_engine_order_queue.capacity());
+            eprintln!("  fill_queue ptr={:p} len={} cap={}",
+                Arc::as_ptr(&self.fill_queue),
+                self.fill_queue.len(),
+                self.fill_queue.capacity());
+
+            // reset counters
+            count = 0;
+            channel_recv_time = std::time::Duration::ZERO;
+            channel_send_time = std::time::Duration::ZERO;
+            lock_funds_time = std::time::Duration::ZERO;
+            update_balance_time = std::time::Duration::ZERO;
+            last_log = std::time::Instant::now();
+        }
     }
+}
+
 
     pub fn add_test_users(&mut self ){
         self.state.user_id_to_index.insert(10, 1);
@@ -383,6 +380,7 @@ impl STbalanceManager{
         let balance_state = BalanceState::new();
         Self {  state: balance_state  }
     }
+    #[inline(always)]
     pub fn get_user_index(&self , user_id : u64 )->Result<u32 , BalanceManagerError>{
         self.state.user_id_to_index
         .get(&user_id).map(|index| *index)
@@ -395,6 +393,7 @@ impl STbalanceManager{
     pub fn get_user_holdings(&mut self , user_index : u32)->&mut UserHoldings{
         &mut self.state.holdings[user_index as usize]
     }
+    #[inline(always)]
     pub fn check_and_lock_funds(&mut self , order : Order)->Result<() , BalanceManagerError>{
         // currently for limit orders , we get an order 
         // we have user id , symbol , side , holfings 
@@ -436,6 +435,7 @@ impl STbalanceManager{
         Ok(())
     }
     #[cfg_attr(feature = "hotpath", hotpath::measure)]
+    #[inline(always)]
     pub fn update_balances_after_trade(&mut self, order_fills: Fills) -> Result<(), BalanceManagerError> {
         
         for fill in order_fills.fills {

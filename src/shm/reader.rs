@@ -1,9 +1,10 @@
 
-
+use std::sync::Arc;
 use crate::shm::queue::QueueError;
 // SHM reader , passed ordrs to the balance manager 
 use crate::{orderbook::order::ShmOrder, shm::queue::Queue};
 use crate::orderbook::order::Side;
+use crossbeam::queue::ArrayQueue;
 use crossbeam::{channel::Sender};
 use crate::orderbook::order::{Order };
 use crate::orderbook::types::{ShmReaderError};
@@ -11,13 +12,14 @@ use crate::orderbook::types::{ShmReaderError};
 pub struct ShmReader {
     pub queue: Queue,  // Not Option
     pub order_sender_to_balance_manager: Sender<Order>,
+    pub shm_bm_order_queue : Arc<ArrayQueue<Order>>
 }
 
 impl ShmReader {
     /// Returns None if queue can't be opened
-    pub fn new(order_sender_to_balance_manager: Sender<Order>) -> Option<Self> {
+    pub fn new(order_sender_to_balance_manager: Sender<Order> , shm_bm_order_queue : Arc<ArrayQueue<Order>>) -> Option<Self> {
         match Queue::open("/tmp/sex") {
-            Ok(queue) => Some(Self { queue, order_sender_to_balance_manager }),
+            Ok(queue) => Some(Self { queue, order_sender_to_balance_manager , shm_bm_order_queue }),
             Err(e) => {
                 eprintln!("[SHM Reader] Failed to open queue: {:?}", e);
                 None
@@ -64,10 +66,24 @@ impl ShmReader {
                     //println!("Sending to balance manager ");
                     // send to balance manager 
 
-                    match self.order_sender_to_balance_manager.send(order) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            eprintln!("[SHM Reader] Channel full, dropping order: {:?}", e);
+                    //match self.order_sender_to_balance_manager.send(order) {
+                    //    Ok(_) => {}
+                    //    Err(e) => {
+                    //        eprintln!("[SHM Reader] Channel full, dropping order: {:?}", e);
+                    //    }
+                    //}
+
+                    match self.shm_bm_order_queue.push(order) {
+                        Ok(_)=>{}
+                        Err(order) => {
+                            eprintln!(
+                                "[SHM Reader] Channel full, dropping order: {:?} ; queue_ptr={:p} len={} cap={}",
+                                order,
+                                Arc::as_ptr(&self.shm_bm_order_queue),
+                                self.shm_bm_order_queue.len(),
+                                self.shm_bm_order_queue.capacity()
+                              );
+                            
                         }
                     }
                     

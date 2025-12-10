@@ -1,12 +1,13 @@
-use crossbeam::channel::Receiver;
+use crossbeam::{channel::Receiver, queue::ArrayQueue};
 use crate::orderbook::types::Event;
-
+use std::sync::Arc;
 pub struct EventPublisher {
-    receiver: Receiver<Event>,   
+    pub receiver: Receiver<Event>,   
+    pub event_queue : Arc<ArrayQueue<Event>>
 }
 impl EventPublisher {
-    pub fn new(rx: Receiver<Event>) -> Self {
-        Self { receiver: rx }
+    pub fn new(rx: Receiver<Event> , event_queue : Arc<ArrayQueue<Event>>) -> Self {
+        Self { receiver: rx , event_queue }
     }
     pub fn start_publisher(&mut self) {
         let mut batch = Vec::with_capacity(10_000);
@@ -19,15 +20,14 @@ impl EventPublisher {
             batch.clear();
             
             // Blocking recv (wait for first event)
-            match self.receiver.recv() {
+            match self.event_queue.pop() {
 
-                Ok(event) => {
+                Some(event) => {
                     //println!("publisher receieved fills");
                     batch.push(event);
                     count += 1;
                 }
-                Err(_) => {
-                    println!("[PUBLISHER] Channel closed, exiting");
+                None =>{
                     break;
                 }
             }

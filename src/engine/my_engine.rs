@@ -4,6 +4,8 @@ use crate::orderbook::types::{Event, Fills, MatchResult} ;
 use crate::orderbook::order_book::OrderBook;
 use crate::shm::queue::Queue;
 use crossbeam::channel::{Sender , Receiver};
+use crossbeam::queue::ArrayQueue;
+use std::sync::Arc;
 
 pub trait Engine{
     fn add_book(&mut self , symbol : u32);
@@ -22,11 +24,14 @@ pub struct MyEngine{
     pub event_publisher : Sender<Event>,
     pub test_orderbook : OrderBook,
     pub sender_to_balance_manager : Sender<Fills>,
-    pub order_receiver :Receiver<Order>
+    pub order_receiver :Receiver<Order>,
+    pub bm_engine_order_queue : Arc<ArrayQueue<Order>>,
+    pub fill_queue : Arc<ArrayQueue<Fills>>,
+    pub event_queue : Arc<ArrayQueue<Event>>
 }
 
 impl MyEngine{
-    pub fn new(event_publisher : Sender<Event>, engine_id : usize , sender_to_balance_manager: Sender<Fills> , order_receiver :Receiver<Order>)->Self {
+    pub fn new(event_publisher : Sender<Event>, engine_id : usize , sender_to_balance_manager: Sender<Fills> , order_receiver :Receiver<Order> , bm_engine_order_queue : Arc<ArrayQueue<Order>>, fill_queue : Arc<ArrayQueue<Fills>>,event_queue : Arc<ArrayQueue<Event>>)->Self {
         // initialise the publisher channel here 
         
             Self{
@@ -36,7 +41,10 @@ impl MyEngine{
                 event_publisher  ,
                 test_orderbook : OrderBook::new(100),
                 sender_to_balance_manager , 
-                order_receiver
+                order_receiver,
+                bm_engine_order_queue,
+                fill_queue,
+                event_queue
             } 
             
     }
@@ -48,26 +56,43 @@ impl MyEngine{
         let mut last_log = std::time::Instant::now();
         loop {
             
-            match self.order_receiver.recv() {
-                Ok(mut recieved_order)=>{
-                    //println!("recived order to engine ");
-                    if let Some(order_book) = self.get_book_mut(recieved_order.symbol){
-                        let events = match recieved_order.side {
-                            Side::Bid => order_book.match_bid(&mut recieved_order),
-                            Side::Ask => order_book.match_ask(&mut recieved_order)
-                        };
-                       // println!("order matched events created ");
-                        if let Ok(match_result)=events{
-                            let _ = self.sender_to_balance_manager.send(match_result.fills.clone());
-                         //   println!("sending fills to balance manager ");
-                            let _ = self.event_publisher.send(Event::MatchResult(match_result));
-                           // println!("sedning events to publisher ");
-                        }
-                        count += 1;
-                    }
-                }
-                Err(_)=>{
+            //match self.order_receiver.recv() {
+            //    Ok(mut recieved_order)=>{
+            //        //println!("recived order to engine ");
+            //        if let Some(order_book) = self.get_book_mut(recieved_order.symbol){
+            //            let events = match recieved_order.side {
+            //                Side::Bid => order_book.match_bid(&mut recieved_order),
+            //                Side::Ask => order_book.match_ask(&mut recieved_order)
+            //            };
+            //           // println!("order matched events created ");
+            //            if let Ok(match_result)=events{
+            //                let _ = self.sender_to_balance_manager.send(match_result.fills.clone());
+            //             //   println!("sending fills to balance manager ");
+            //                let _ = self.event_publisher.send(Event::MatchResult(match_result));
+            //               // println!("sedning events to publisher ");
+            //            }
+            //            count += 1;
+            //        }
+            //    }
+            //    Err(_)=>{
+//
+            //    }
+            //}
 
+            if let Some(mut recieved_order) = self.bm_engine_order_queue.pop(){
+                if let Some(order_book) = self.get_book_mut(recieved_order.symbol){
+                    let events = match recieved_order.side {
+                        Side::Bid => order_book.match_bid(&mut recieved_order),
+                        Side::Ask => order_book.match_ask(&mut recieved_order)
+                    };
+                   // println!("order matched events created ");
+                    if let Ok(match_result)=events{
+                        let _ = self.fill_queue.push(match_result.fills.clone());
+                     //   println!("sending fills to balance manager ");
+                        let _ = self.event_queue.push(Event::MatchResult(match_result));
+                       // println!("sedning events to publisher ");
+                    }
+                    count += 1;
                 }
             }
 

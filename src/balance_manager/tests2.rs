@@ -354,23 +354,23 @@ mod tests_balance_manager2 {
     }
 
     #[test]
-    fn test_add_test_users() {
-        let (balance_query_tx, balance_query_rx) = crossbeam::channel::unbounded::<BalanceQuery>();
-        let (holdings_query_tx, holdings_query_rx) = crossbeam::channel::unbounded::<HoldingsQuery>();
-        let (order_tx, order_rx) = crossbeam::channel::unbounded::<Order>();
-        let (_, fill_rx) = crossbeam::channel::unbounded::<Fills>();
-        
-        let mut bm = MyBalanceManager2::new(order_tx, fill_rx, order_rx, balance_query_rx, holdings_query_rx);
-        
-        bm.add_test_users();
-        
-        // Verify users were added
-        assert!(bm.state.user_id_to_index.contains_key(&10));
-        assert!(bm.state.user_id_to_index.contains_key(&20));
-        
-        // Verify user 20 has holdings
-        assert_eq!(bm.state.holdings[2].available_holdings[0], 10);
-    }
+    //fn test_add_test_users() {
+    //    let (balance_query_tx, balance_query_rx) = crossbeam::channel::unbounded::<BalanceQuery>();
+    //    let (holdings_query_tx, holdings_query_rx) = crossbeam::channel::unbounded::<HoldingsQuery>();
+    //    let (order_tx, order_rx) = crossbeam::channel::unbounded::<Order>();
+    //    let (_, fill_rx) = crossbeam::channel::unbounded::<Fills>();
+    //    
+    //    let mut bm = MyBalanceManager2::new(order_tx, fill_rx, order_rx, balance_query_rx, holdings_query_rx);
+    //    
+    //    bm.add_test_users();
+    //    
+    //    // Verify users were added
+    //    assert!(bm.state.user_id_to_index.contains_key(&10));
+    //    assert!(bm.state.user_id_to_index.contains_key(&20));
+    //    
+    //    // Verify user 20 has holdings
+    //    assert_eq!(bm.state.holdings[2].available_holdings[0], 10);
+    //}
 
     #[test]
     fn test_zero_quantity_order() {

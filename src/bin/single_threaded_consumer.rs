@@ -1,6 +1,6 @@
 // src/bin/single_threaded.rs
 use rust_orderbook_2::{
-    balance_manager::my_balance_manager2::STbalanceManager, engine::my_engine::{Engine, STEngine}, orderbook::{order::Order, types::MatchResult}, shm::reader::StShmReader
+    balance_manager::my_balance_manager2::STbalanceManager, engine::my_engine::{Engine, STEngine}, orderbook::{order::Order}, shm::reader::StShmReader
 };
 use std::time::Instant;
 
@@ -90,6 +90,8 @@ impl TradingCore {
     }
 }
 
+
+#[hotpath::main]
 fn main() {
     let mut trading_system = TradingCore::new();
     trading_system.balance_manager.add_throughput_test_users();

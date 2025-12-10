@@ -1513,6 +1513,7 @@ dependencies = [
  "clap",
  "core_affinity",
  "crossbeam",
+ "crossbeam-utils",
  "dashmap",
  "env_logger",
  "hotpath",
