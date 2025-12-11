@@ -84,6 +84,8 @@ impl TradingCore {
                 self.processed_count = 0;
                 self.last_log = Instant::now();
             }
+
+        
         }
     }
 }

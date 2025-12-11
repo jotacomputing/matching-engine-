@@ -3,6 +3,10 @@ name = "rust-orderbook-2"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "rust_orderbook_2"
+path = "src/lib.rs"
+
 
 [dependencies]
 slotmap = "1.0"

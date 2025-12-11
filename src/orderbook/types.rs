@@ -131,3 +131,8 @@ pub struct BalanceInfo{
 pub enum ShmReaderError{
     QueueError
 }
+
+pub enum QueueError{
+    QueueFullError , 
+    QueueEmptyError
+}
