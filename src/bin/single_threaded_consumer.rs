@@ -8,8 +8,6 @@ pub struct TradingCore {
     pub balance_manager: STbalanceManager,
     pub shm_reader: StShmReader,
     pub engine: STEngine,
-    
-    // ✅ Performance tracking
     processed_count: u64,
     last_log: Instant,
     order_batch : Vec<Order>
@@ -71,7 +69,7 @@ impl TradingCore {
                     }
                 }
             }
-            // ✅ Log throughput every 2 seconds
+          
             if self.last_log.elapsed().as_secs() >= 2 {
                 let elapsed = self.last_log.elapsed();
                 let rate = self.processed_count as f64 / elapsed.as_secs_f64();

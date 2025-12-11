@@ -31,8 +31,6 @@ pub struct UserBalance {
     pub reserved_balance: u64,         
     pub total_traded_today: u64,  
     pub order_count_today: u64,   
-    // 36 bytes , pad to 64 
-    _padding: [u8; 28],  
 }
 impl Default for UserBalance{
     fn default()->Self{
@@ -40,8 +38,7 @@ impl Default for UserBalance{
             available_balance: DEFAULT_BALANCE, 
             reserved_balance: 0,
             total_traded_today: 0, 
-            order_count_today: 0,
-             _padding: [0 ; 28] 
+            order_count_today: 0
             }
     }
 }
@@ -517,7 +514,6 @@ impl STbalanceManager{
             self.state.holdings[2].available_holdings[symbol] = HIGH_HOLDINGS;
         }
         
-        // ✅ VERIFY INITIALIZATION
         let user10_bal = self.state.balances[1].available_balance;
         let user20_bal = self.state.balances[2].available_balance;
         let user20_holdings = self.state.holdings[2].available_holdings[0];
