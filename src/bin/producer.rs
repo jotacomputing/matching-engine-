@@ -53,10 +53,11 @@ fn main() {
         shares_qty: 1,
         symbol: 0,
         status: 0,
-        side: 0,      // 0 = buy, 1 = sell
+        side: 0,   
+        order_type : 1,   // 0 = buy, 1 = sell
         price: 10,
         timestamp: current_time_ns(),
-        _padding: [0; 14],
+       
     };
 
     // Price levels around 50000

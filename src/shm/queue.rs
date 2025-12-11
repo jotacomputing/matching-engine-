@@ -43,7 +43,7 @@ const HEADER_SIZE: usize = std::mem::size_of::<QueueHeader>();
 const TOTAL_SIZE: usize = HEADER_SIZE + (QUEUE_CAPACITY * ORDER_SIZE);
 
 // Compile-time layout assertions (fail build if wrong)
-const _: () = assert!(ORDER_SIZE == 56, "Order must be 48 bytes");
+const _: () = assert!(ORDER_SIZE == 48, "Order must be 43 bytes");
 const _: () = assert!(HEADER_SIZE == 136, "QueueHeader must be 136 bytes");
 const _: () = {
     // Verify ConsumerTail is at offset 64

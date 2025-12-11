@@ -34,6 +34,7 @@ mod tests {
             order_id,
             side,
             shares_qty: qty,
+            order_type : 1 ,
             price,
             timestamp: 0,
             next: None,

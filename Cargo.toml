@@ -22,6 +22,7 @@ tonic = "0.14.2"
 prost = "0.14.1"
 hotpath = "0.8"
 crossbeam-utils = "0.8.21"
+thiserror = "2.0.17"
 
 
 [[bin]]
@@ -41,3 +42,7 @@ tonic-build = "0.11"
 hotpath = ["hotpath/hotpath"]
 hotpath-alloc = ["hotpath/hotpath-alloc"]
 hotpath-off = ["hotpath/hotpath-off"]
+
+
+[profile.release]
+debug = true

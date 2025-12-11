@@ -80,10 +80,22 @@ impl MyEngine{
             //}
 
             if let Some(mut recieved_order) = self.bm_engine_order_queue.pop(){
+
                 if let Some(order_book) = self.get_book_mut(recieved_order.symbol){
-                    let events = match recieved_order.side {
-                        Side::Bid => order_book.match_bid(&mut recieved_order),
-                        Side::Ask => order_book.match_ask(&mut recieved_order)
+                    let events = match recieved_order.order_type {
+                        0 => order_book.match_market_order(&mut recieved_order),
+                        1 =>{
+                            // limit order 
+                            match recieved_order.side{
+                                Side::Ask => order_book.match_ask(&mut recieved_order),
+                                Side::Bid=> order_book.match_bid(&mut recieved_order)
+                                
+                            }
+                        }
+                        _=>{
+                            eprint!("Invalid order struct");
+                            return; 
+                        }
                     };
                    // println!("order matched events created ");
                     if let Ok(match_result)=events{

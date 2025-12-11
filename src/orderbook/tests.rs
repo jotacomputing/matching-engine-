@@ -5,7 +5,7 @@ mod tests {
     use super::*;
 
     fn new_order(user_id : u64 , order_id: u64, side: Side, qty: u32, price: u64, timestamp: u64, symbol: u32) -> Order {
-        Order::new(user_id , order_id, side, qty, price, timestamp, symbol)
+        Order::new(user_id , order_id, side,  1, qty, price, timestamp, symbol)
     }
 
     #[test]

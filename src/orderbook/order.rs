@@ -12,6 +12,7 @@ pub struct Order{
     pub user_id : u64,
     pub order_id : OrderId , 
     pub side : Side , 
+    pub order_type : u8,
     pub shares_qty : u32 , 
     pub price : u64 ,
     pub timestamp : u64 , 
@@ -21,11 +22,12 @@ pub struct Order{
 }
 
 impl Order{
-    pub fn new(user_id : u64 ,order_id : OrderId , side : Side , shares_qty : u32 , price : u64 , timestamp :u64 , symbol : u32)->Self{
+    pub fn new(user_id : u64 ,order_id : OrderId , side : Side, order_type : u8 , shares_qty : u32 , price : u64 , timestamp :u64 , symbol : u32)->Self{
         Self{
             user_id,
             order_id ,
             side ,
+            order_type , 
             shares_qty,
             price ,
             timestamp,
@@ -54,9 +56,8 @@ pub struct ShmOrder{
     // Then u8s (1-byte aligned)
     pub symbol: u32,
     pub side: u8,   // 0=buy, 1=sell
+    pub order_type : u8,   // 0 -> market order  , 1 -> limit order 
     pub status: u8, // 0=pending, 1=filled, 2=rejected
-    // Array of bytes last
-    pub _padding: [u8; 14], // padding to make it 56 bytes     
 }
 
 impl Default for ShmOrder {
@@ -68,9 +69,9 @@ impl Default for ShmOrder {
             shares_qty: 0,
             price: 0,
             side: 0,
+            order_type : 0 , 
             timestamp: 0,
             status: 0,
-            _padding: [0; 14],
         }
     }
 }

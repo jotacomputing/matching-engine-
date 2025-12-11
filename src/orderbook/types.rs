@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use crate::orderbook::order::Side;
 pub type OrderId = u64;
+use thiserror::Error;
 #[derive(Debug , Clone , Copy)]
 pub struct Fill{
     pub price : u64 , 
@@ -96,7 +97,7 @@ pub type PriceLevelChangedEventListener = Arc<dyn Fn(PriceLevelChangedEvent) + S
 // dyn Fn() means any type which taken in a PricelevelChangedEvent and returns nothing 
 // if we dint want it to be thread safe we cud have used just Box 
 
-#[derive(Debug)]
+#[derive(Debug , Error)]
 pub enum OrderBookError{
     // aff errors that can occour 
 }
@@ -105,6 +106,8 @@ pub enum Event {
     PriceLevelChangedEvent(PriceLevelChangedEvent) ,
     MatchResult(MatchResult)
 }
+
+#[derive(Debug , Error)]
 pub enum PubLishError{
 
 }
@@ -112,7 +115,7 @@ pub enum PubLishError{
 pub enum PublishSuccess{
     
 }
-#[derive(Debug)]
+#[derive(Debug )]
 pub enum BalanceManagerError{
     InsufficientFunds ,
     BalanceLockingFailed , 
@@ -124,7 +127,7 @@ pub enum BalanceManagerError{
 pub struct BalanceInfo{
     
 }
-
+#[derive(Debug )]
 pub enum ShmReaderError{
     QueueError
 }
