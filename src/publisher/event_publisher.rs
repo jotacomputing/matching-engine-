@@ -1,5 +1,5 @@
 use crossbeam::{channel::Receiver, queue::ArrayQueue};
-use crate::{orderbook::types::Event, pubsub::pubsub_manager::RedisPubSubManager};
+use crate::{orderbook::types::{Event, TickerData}, pubsub::pubsub_manager::RedisPubSubManager};
 use std::sync::Arc;
 use crate::singlepsinglecq::my_queue::SpscQueue;
 
@@ -13,58 +13,32 @@ impl EventPublisher {
         Self { receiver: rx , event_queue  , mypubsub}
     }
     pub fn start_publisher(&mut self) {
-        let mut batch = Vec::with_capacity(10_000);
-        let mut count = 0u64;
-        let mut total_batches = 0u64;
-        let mut last_log = std::time::Instant::now();
-        
         println!("[PUBLISHER] Started (crossbeam batched mode) on core 5");
         loop {
-            batch.clear();
             
-            // Blocking recv (wait for first event)
             match self.event_queue.pop() {
+                Some(rec_event) => {
+                    let ticker_message = TickerData::new(
+                        String::from("ticker"), 
+                        rec_event.market_update.symbol, 
+                        rec_event.market_update.event_time, 
+                        rec_event.market_update.last_traded_price
+                    );
+                    let stream = format!("trade.{}", rec_event.market_update.symbol);
 
-                Some(event) => {
-                    //println!("publisher receieved fills");
-                    batch.push(event);
-                    count += 1;
+                    if let Ok(payload) = serde_json::to_vec(&ticker_message){
+                       let _ = self.mypubsub.publish(&stream, payload);
+                    }
+                    
                 }
                 None =>{
                     break;
                 }
             }
-            
-            //  Non-blocking drain (get up to 9,999 more)
-            for event in self.receiver.try_iter().take(9_999) {
-                batch.push(event);
-                count += 1;
-            }
-            
-            total_batches += 1;
-            
-            // Step 3: Process batch (currently just drops)
-            // TODO: When publishing to Kafka:
-            // publish_batch_to_kafka(&batch);
-            
-            // Step 4: Stats every 5 seconds
-            if last_log.elapsed().as_secs() >= 5 {
-                let rate = count as f64 / last_log.elapsed().as_secs_f64();
-                let avg_batch_size = if total_batches > 0 {
-                    count as f64 / total_batches as f64
-                } else {
-                    0.0
-                };
-                
-                eprintln!("[PUBLISHER] {:.2}M events/sec, avg batch: {:.0}",
-                    rate / 1_000_000.0, avg_batch_size);
-                
-                count = 0;
-                total_batches = 0;
-                last_log = std::time::Instant::now();
-            }
         }
     }
+
+    
 }
 
 

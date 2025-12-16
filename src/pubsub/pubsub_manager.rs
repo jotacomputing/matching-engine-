@@ -15,7 +15,8 @@ impl RedisPubSubManager {
         Ok(Self { connection })
     }
     
-    pub fn publish(&mut self, stream: &str, message: &str) -> Result<usize, RedisError> {
+    pub fn publish(&mut self, stream: &str, message: Vec<u8>) -> Result<usize, RedisError> {
         self.connection.publish(stream , message)
     }
 }
+

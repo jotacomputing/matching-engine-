@@ -112,7 +112,7 @@ pub enum QueueError{
 
 #[derive(Debug)]
 pub struct Event {
-    market_update :  MarketUpdateAfterTrade
+    pub market_update :  MarketUpdateAfterTrade
 }
 
 impl Event{
@@ -144,13 +144,19 @@ pub struct TickerData {
     pub event: String, // "ticker"
 
     #[serde(rename = "s")]
-    pub symbol: String,
+    pub symbol: u32,
 
     #[serde(rename = "E")]
     pub event_time: i64,
 
     #[serde(rename = "p")]
-    pub price: String,
+    pub price: u64,
+}
+
+impl TickerData{
+    pub fn new(event: String , symbol: u32,event_time: i64,price: u64,)->Self{
+        Self { event, symbol , event_time , price }
+    }
 }
 
 
@@ -160,7 +166,7 @@ pub struct DepthData{
     pub event: String,         
 
     #[serde(rename = "s")]
-    pub symbol: String,
+    pub symbol: u32,
 
     #[serde(rename = "E")]
     pub event_time: i64,
@@ -175,11 +181,18 @@ pub struct DepthData{
     pub last_id: i64,
 
     #[serde(rename = "b")]
-    pub bids: Vec<[String; 2]>,  
+    pub bids: Vec<[String; 3]>,  
 
     #[serde(rename = "a")]
-    pub asks: Vec<[String; 2]>,
+    pub asks: Vec<[String; 3]>,
 }
+
+impl DepthData{
+    pub fn new(event: String,symbol: u32, event_time: i64,trade_time: i64 , bids: Vec<[String; 3]>, asks: Vec<[String; 3]>,)->Self{
+        Self { event , symbol , event_time , trade_time , first_id : 0 , last_id : 0 , bids , asks }
+    }
+}
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TradeData {
@@ -187,7 +200,7 @@ pub struct TradeData {
     pub event: String,
 
     #[serde(rename = "s")]
-    pub symbol: String,
+    pub symbol: u32,
 
     #[serde(rename = "E")]
     pub event_time: i64,
@@ -199,10 +212,10 @@ pub struct TradeData {
     pub trade_id: i64,
 
     #[serde(rename = "p")]
-    pub price: String,
+    pub price: u64,
 
     #[serde(rename = "q")]
-    pub quantity: String,
+    pub quantity: u32,
 
     #[serde(rename = "a")]
     pub buyer_order_id: String,
@@ -214,5 +227,10 @@ pub struct TradeData {
     pub is_buyer_maker: bool,
 }
 
-
+impl TradeData{
+    pub fn new(event: String, symbol: u32, event_time: i64, trade_time: i64, price: u64,quantity: u32, buyer_order_id: String,seller_order_id: String,
+        is_buyer_maker: bool)->Self{
+        Self { event, symbol , event_time , trade_time , trade_id: 0 , price , quantity , buyer_order_id , seller_order_id , is_buyer_maker }
+    }
+}
 // the trade data will be extracted by each fills by the manager 
