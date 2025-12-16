@@ -218,17 +218,17 @@ pub struct TradeData {
     pub quantity: u32,
 
     #[serde(rename = "a")]
-    pub buyer_order_id: String,
+    pub buyer_order_id: u64,
 
     #[serde(rename = "b")]
-    pub seller_order_id: String,
+    pub seller_order_id: u64,
 
     #[serde(rename = "m")]
     pub is_buyer_maker: bool,
 }
 
 impl TradeData{
-    pub fn new(event: String, symbol: u32, event_time: i64, trade_time: i64, price: u64,quantity: u32, buyer_order_id: String,seller_order_id: String,
+    pub fn new(event: String, symbol: u32, event_time: i64, trade_time: i64, price: u64,quantity: u32, buyer_order_id: u64,seller_order_id: u64,
         is_buyer_maker: bool)->Self{
         Self { event, symbol , event_time , trade_time , trade_id: 0 , price , quantity , buyer_order_id , seller_order_id , is_buyer_maker }
     }

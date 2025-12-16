@@ -129,7 +129,7 @@ fn main(){
     });
 
     running_engines.push(first_join_handle);
-    let pubsub_connection = RedisPubSubManager::new("localhost:6379");
+    let pubsub_connection = RedisPubSubManager::new("redis://localhost:6379");
     if pubsub_connection.is_err(){
         panic!("pubsub error , not initialising publisher");
     }
