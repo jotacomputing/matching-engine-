@@ -11,7 +11,7 @@ use crate::orderbook::types::{ShmReaderError};
 use crate::singlepsinglecq::my_queue::SpscQueue;
 
 pub struct ShmReader {
-    pub queue: Queue,  // Not Option
+    pub queue: Queue,  
     pub order_sender_to_balance_manager: Sender<Order>,
     pub shm_bm_order_queue : Arc<SpscQueue<Order>>,
     pub order_batch : Vec<ShmOrder>

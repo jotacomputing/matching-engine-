@@ -3,7 +3,7 @@ use rust_orderbook_2::{
     balance_manager::my_balance_manager2::STbalanceManager, engine::my_engine::{Engine, STEngine}, orderbook::{order::Order}, shm::reader::StShmReader
 };
 use std::time::Instant;
-
+use rust_orderbook_2::shm::queue::Queue;
 pub struct TradingCore {
     pub balance_manager: STbalanceManager,
     pub shm_reader: StShmReader,
@@ -93,6 +93,7 @@ impl TradingCore {
 
 #[hotpath::main]
 fn main() {
+    let _ = Queue::create("/tmp/sex");
     let mut trading_system = TradingCore::new();
     trading_system.balance_manager.add_throughput_test_users();
     trading_system.engine.add_book(0);

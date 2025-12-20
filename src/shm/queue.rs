@@ -1,8 +1,9 @@
 use memmap2::MmapMut;
-use std::fs::OpenOptions;
+use std::fs::{self, OpenOptions };
 use std::path::Path;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use crate::orderbook::order::ShmOrder;
+use std::os::unix::fs::OpenOptionsExt;
 
 
 //#[repr(C)]
@@ -61,6 +62,62 @@ pub struct Queue {
 }
 
 impl Queue {
+    pub fn create<P: AsRef<Path>>(path: P) -> Result<Self, QueueError> {
+        let _ = fs::remove_file(&path);
+    
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .create_new(true) // O_EXCL
+            .mode(0o666)
+            .open(&path)
+            .map_err(|e| QueueError::FileOpen(e.to_string()))?;
+    
+        file.set_len(TOTAL_SIZE as u64)
+            .map_err(|e| QueueError::FileStat(e.to_string()))?;
+    
+        file.sync_all()
+            .map_err(|e| QueueError::FileStat(e.to_string()))?;
+    
+        let mut mmap =
+            unsafe { MmapMut::map_mut(&file) }.map_err(|e| QueueError::Mmap(e.to_string()))?;
+    
+        if let Err(e) = mmap.lock() {
+            eprintln!("Warning: failed to mlock: {}", e);
+        }
+    
+        let header_ptr = mmap.as_mut_ptr() as *mut QueueHeader;
+    
+        unsafe {
+            (*header_ptr)
+                .producer_head
+                .store(0, Ordering::SeqCst);
+            (*header_ptr)
+                .consumer_tail
+                .store(0, Ordering::SeqCst);
+            (*header_ptr)
+                .magic
+                .store(QUEUE_MAGIC, Ordering::SeqCst);
+            (*header_ptr)
+                .capacity
+                .store(QUEUE_CAPACITY as u32, Ordering::SeqCst);
+        }
+    
+        mmap.flush()
+            .map_err(|e| QueueError::Flush(e.to_string()))?;
+    
+        let orders_ptr = unsafe {
+            mmap.as_mut_ptr().add(HEADER_SIZE) as *mut ShmOrder
+        };
+    
+        Ok(Queue {
+            mmap,
+            header_ptr,
+            orders_ptr,
+        })
+    }
+    
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self, QueueError> {
         let file = OpenOptions::new()
             .read(true)
