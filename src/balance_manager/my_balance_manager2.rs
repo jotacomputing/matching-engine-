@@ -19,6 +19,7 @@ use crossbeam::channel::{Receiver, Sender};
 use crate::orderbook::types::{BalanceManagerError, Fills, };
 use crate::orderbook::order::{ Order, Side};
 use crate::balance_manager::types::{BalanceQuery , HoldingsQuery};
+use crate::shm::event_queue::OrderEvents;
 use crate::singlepsinglecq::my_queue::SpscQueue;
 const MAX_USERS: usize = 100; // pre allocating for a max of 100 users 
 const MAX_SYMBOLS : usize = 100 ; 
@@ -95,14 +96,15 @@ pub struct MyBalanceManager2{
     pub holdings_query_receiver: Receiver<HoldingsQuery>,
     pub fill_queue : Arc<SpscQueue<Fills>>,
     pub shm_bm_order_queue : Arc<SpscQueue<Order>>,
-    pub bm_engine_order_queue : Arc<SpscQueue<Order>>
+    pub bm_engine_order_queue : Arc<SpscQueue<Order>>,
+    pub bm_writer_order_event_queue : Arc<SpscQueue<OrderEvents>>
 }
 
 impl MyBalanceManager2{
-    pub fn new(order_sender : Sender<Order> , fill_recv :Receiver<Fills> , order_receiver : Receiver<Order> , balance_query_receiver: Receiver<BalanceQuery>, holdings_query_receiver: Receiver<HoldingsQuery> , fill_queue : Arc<SpscQueue<Fills>>,shm_bm_order_queue : Arc<SpscQueue<Order>>,bm_engine_order_queue : Arc<SpscQueue<Order>>)->Self{
+    pub fn new(order_sender : Sender<Order> , fill_recv :Receiver<Fills> , order_receiver : Receiver<Order> , balance_query_receiver: Receiver<BalanceQuery>, holdings_query_receiver: Receiver<HoldingsQuery> , fill_queue : Arc<SpscQueue<Fills>>,shm_bm_order_queue : Arc<SpscQueue<Order>>,bm_engine_order_queue : Arc<SpscQueue<Order>> , bm_writer_order_event_queue : Arc<SpscQueue<OrderEvents>>)->Self{
         let balance_state = BalanceState::new();
         Self { order_sender, fill_recv, order_receiver, state: balance_state , balance_query_receiver , holdings_query_receiver
-        ,fill_queue , shm_bm_order_queue , bm_engine_order_queue }
+        ,fill_queue , shm_bm_order_queue , bm_engine_order_queue , bm_writer_order_event_queue }
     }
     pub fn get_user_index(&self , user_id : u64 )->Result<u32 , BalanceManagerError>{
         self.state.user_id_to_index

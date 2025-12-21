@@ -11,10 +11,11 @@ use core_affinity;
 use rust_orderbook_2::pubsub::pubsub_manager::RedisPubSubManager;
 use rust_orderbook_2::shm::queue::IncomingOrderQueue;
 use rust_orderbook_2::shm::cancel_orders_queue::CancelOrderQueue;
-use rust_orderbook_2::shm::event_queue::OrderEventQueue;
+use rust_orderbook_2::shm::event_queue::{OrderEventQueue, OrderEvents};
 use rust_orderbook_2::shm::query_queue::QueryQueue;
 use rust_orderbook_2::shm::query_response_queue::QueryResQueue;
 use rust_orderbook_2::shm::reader::ShmReader;
+use rust_orderbook_2::shm::writer::ShmWriter;
 use rust_orderbook_2::singlepsinglecq::my_queue::SpscQueue;
 //use crossbeam::queue::ArrayQueue; // try this tooo for final decision 
 
@@ -34,7 +35,8 @@ fn main(){
     let event_queue = Arc::new(SpscQueue::<Event>::new(32768));
     let bm_engine_order_queue = Arc::new(SpscQueue::<Order>::new(32768));
     let shm_bm_order_queue = Arc::new(SpscQueue::<Order>::new(32768));
-
+    let bm_writter_order_event_queue = Arc::new(SpscQueue::<OrderEvents>::new(32768));
+    let publisher_writer_order_event_queue = Arc::new(SpscQueue::<OrderEvents>::new(32768));
 
 
 
@@ -50,8 +52,12 @@ fn main(){
     let shm_bm_order_queue_clone_for_reader = Arc::clone(&shm_bm_order_queue);
     let shm_bm_order_queue_clone_for_bm = Arc::clone(&shm_bm_order_queue);
 
-    
+    let bm_writter_order_event_queue_clone_for_bm = Arc::clone(&bm_writter_order_event_queue);
+    let bm_writter_order_event_queue_clone_for_writter = Arc::clone(&bm_writter_order_event_queue);
 
+
+    let publisher_writer_order_event_queue_clone_for_pub = Arc::clone(&publisher_writer_order_event_queue);
+    let publisher_writer_order_event_queue_clone_for_writter = Arc::clone(&publisher_writer_order_event_queue);
     
     
     let (event_sender , event_rec) = crossbeam::channel::bounded::<Event>(1024);
@@ -117,7 +123,8 @@ fn main(){
             grpc_holding_query_recv_clone,
             fill_queue_clone_for_bm,
             shm_bm_order_queue_clone_for_bm,
-            bm_engine_order_queue_clone_for_bm
+            bm_engine_order_queue_clone_for_bm,
+            bm_writter_order_event_queue_clone_for_bm
         );
 
         my_balance_manager.add_throughput_test_users();
@@ -155,10 +162,22 @@ fn main(){
         let mut my_publisher = EventPublisher::new(
             event_receiver_clone,
             event_queue_clone_for_publisher,
-            pubsub_connection.unwrap()
+            pubsub_connection.unwrap() , 
+            publisher_writer_order_event_queue_clone_for_pub
         );
 
         my_publisher.start_publisher();
+    });
+
+    let writter_handle = std::thread::spawn(move|| {
+        core_affinity::set_for_current(core_affinity::CoreId { id: 7 });
+        let  shm_writter = ShmWriter::new(bm_writter_order_event_queue_clone_for_writter,publisher_writer_order_event_queue_clone_for_writter);
+        if shm_writter.is_some(){
+            shm_writter.unwrap().start_shm_writter();
+        }
+        else{
+            eprintln!("error initialising shm writter")
+        }
     });
 
    // DROPING ORIGNAL CHANNELS
@@ -180,6 +199,7 @@ fn main(){
     publisher_handle.join().expect("Publisher thread panicked");
     balance_manager_handle.join().expect("Balance Manager Paniked");
     shm_reader_handle.join().expect("SHM reader panicked");
+    writter_handle.join().expect("Shm writter panicked");
     println!("System shutdown");
     
 

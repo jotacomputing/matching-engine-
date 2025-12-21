@@ -1,16 +1,17 @@
 use crossbeam::{channel::Receiver, queue::ArrayQueue};
-use crate::{orderbook::{order::Side, types::{DepthData, Event, Fills, TickerData, TradeData}}, pubsub::pubsub_manager::RedisPubSubManager};
+use crate::{orderbook::{order::Side, types::{DepthData, Event, Fills, TickerData, TradeData}}, pubsub::pubsub_manager::RedisPubSubManager, shm::event_queue::OrderEvents};
 use std::{fmt::format, sync::Arc};
 use crate::singlepsinglecq::my_queue::SpscQueue;
 
 pub struct EventPublisher {
     pub receiver: Receiver<Event>,   
     pub event_queue : Arc<SpscQueue<Event>> , 
-    pub mypubsub : RedisPubSubManager
+    pub mypubsub : RedisPubSubManager ,
+    pub pub_writter_order_event_queue : Arc<SpscQueue<OrderEvents>>
 }
 impl EventPublisher {
-    pub fn new(rx: Receiver<Event> , event_queue : Arc<SpscQueue<Event>> , mypubsub : RedisPubSubManager) -> Self {
-        Self { receiver: rx , event_queue  , mypubsub}
+    pub fn new(rx: Receiver<Event> , event_queue : Arc<SpscQueue<Event>> , mypubsub : RedisPubSubManager , pub_writter_order_event_queue : Arc<SpscQueue<OrderEvents>>) -> Self {
+        Self { receiver: rx , event_queue  , mypubsub , pub_writter_order_event_queue}
     }
     pub fn start_publisher(&mut self) {
         println!("[PUBLISHER] Started (crossbeam batched mode) on core 5");

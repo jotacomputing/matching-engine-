@@ -122,6 +122,9 @@ impl MyEngine{
                     count += 1;
                 }
             }
+            else{
+                std::hint::spin_loop();
+            }
 
             if last_log.elapsed().as_secs() >= 2 {
                 let rate = count as f64 / last_log.elapsed().as_secs_f64();
