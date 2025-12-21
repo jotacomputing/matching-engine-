@@ -1,5 +1,5 @@
 use crossbeam::{channel::Receiver, queue::ArrayQueue};
-use crate::{orderbook::{order::Side, types::{DepthData, Event, Fills, TickerData, TradeData}}, pubsub::pubsub_manager::RedisPubSubManager, shm::event_queue::OrderEvents};
+use crate::{orderbook::{order::Side, types::{DepthData, Event, Fills, TickerData, TradeData}}, pubsub::pubsub_manager::RedisPubSubManager, shm::event_queue::{EventType, OrderEvents}};
 use std::{fmt::format, sync::Arc};
 use crate::singlepsinglecq::my_queue::SpscQueue;
 
@@ -49,7 +49,8 @@ impl EventPublisher {
                         }
                     }
                     {
-                        for fill in rec_event.market_update.match_result.fills.fills{
+                        // check if we even need to return fills to the user and then avod clone here 
+                        for fill in rec_event.market_update.match_result.fills.fills.clone(){
                             let trade_stream = format!("trade.{}" , rec_event.market_update.symbol);
                             let trade_message = TradeData::new(
                                 String::from("trade"),  
@@ -73,8 +74,34 @@ impl EventPublisher {
                     }
                     // we need to send trade messages for all fills 
                     // sedning order events to the shm writter for the partuclar order updates 
-                    
-                    
+                    // check if fills are really needed or not for the user 
+                    let orignal_qty =  rec_event.market_update.match_result.orignal_qty;
+                    let remaining_qty = rec_event.market_update.match_result.remaining_qty;
+
+                    if remaining_qty == 0  {
+                        let _ = self.pub_writter_order_event_queue.push(OrderEvents { 
+                            user_id: rec_event.market_update.match_result.user_id, 
+                            order_id: rec_event.market_update.match_result.order_id, 
+                            symbol: rec_event.market_update.symbol, 
+                            event_type: EventType::CompletelyFilled(rec_event.market_update.match_result) 
+                        });
+                    }
+                    else if remaining_qty == orignal_qty {
+                        let _ = self.pub_writter_order_event_queue.push(OrderEvents { 
+                            user_id: rec_event.market_update.match_result.user_id, 
+                            order_id: rec_event.market_update.match_result.order_id, 
+                            symbol: rec_event.market_update.symbol, 
+                            event_type: EventType::Accepted(rec_event.market_update.match_result)
+                        });
+                    }
+                    else if orignal_qty - remaining_qty > 0 {
+                        let _ = self.pub_writter_order_event_queue.push(OrderEvents { 
+                            user_id: rec_event.market_update.match_result.user_id, 
+                            order_id: rec_event.market_update.match_result.order_id, 
+                            symbol: rec_event.market_update.symbol, 
+                            event_type: EventType::PartiallyFilled(rec_event.market_update.match_result) 
+                        });
+                    }
                 }
                 
                 None =>{

@@ -37,7 +37,7 @@ impl Fill{
         self.price * self.quantity as u64
     }
 }
-#[derive(Debug  , Clone )]
+#[derive(Debug  , Clone  )]
 pub struct Fills{
     pub fills : Vec<Fill>
 }
@@ -59,14 +59,15 @@ impl Fills{
 pub struct MatchResult{
     /// The ID of the incoming order that initiated the match
     pub order_id : OrderId , 
+    pub user_id : u64,
     pub fills : Fills,
     pub remaining_qty : u32,
     pub orignal_qty : u32 ,
 }
 
 impl MatchResult{
-    pub fn new(order_id: OrderId, initial_quantity: u32, orignal_qty : u32)->Self{
-        Self { order_id , fills: Fills::new(), remaining_qty: initial_quantity , orignal_qty }
+    pub fn new(order_id: OrderId, user_id : u64 ,  remaining_qty: u32, orignal_qty : u32)->Self{
+        Self { order_id , user_id ,  fills: Fills::new(), remaining_qty , orignal_qty }
     }
 }
 

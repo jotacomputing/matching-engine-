@@ -118,7 +118,7 @@ impl OrderBook{
         }
 
         Ok(MatchResult{
-            order_id : order.order_id , fills : {Fills { fills: self.fill_buffer.clone() }} , remaining_qty:order.shares_qty , orignal_qty:orignal_shares_qty
+            order_id : order.order_id , user_id : order.user_id ,  fills : {Fills { fills: self.fill_buffer.clone() }} , remaining_qty:order.shares_qty , orignal_qty:orignal_shares_qty
         }) 
     }
 
@@ -225,7 +225,7 @@ impl OrderBook{
         }
 
         Ok(MatchResult{
-            order_id : order.order_id , fills : {Fills { fills: self.fill_buffer.clone() }} , remaining_qty : order.shares_qty , orignal_qty : orignal_shares_qty
+            order_id : order.order_id ,user_id : order.user_id ,fills : {Fills { fills: self.fill_buffer.clone() }} , remaining_qty : order.shares_qty , orignal_qty : orignal_shares_qty
         })
     }
     #[cfg_attr(feature = "hotpath", hotpath::measure)]
@@ -325,7 +325,7 @@ impl OrderBook{
             );
         }
         Ok(MatchResult{
-            order_id : order.order_id , fills : {Fills { fills: self.fill_buffer.clone() }} , remaining_qty : order.shares_qty , orignal_qty:orignal_shares_qty
+            order_id : order.order_id , user_id : order.user_id ,fills : {Fills { fills: self.fill_buffer.clone() }} , remaining_qty : order.shares_qty , orignal_qty:orignal_shares_qty
         })
     }
 
