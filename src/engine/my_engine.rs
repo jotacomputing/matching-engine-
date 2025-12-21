@@ -2,7 +2,8 @@ use chrono::prelude::*;
 use std::collections::HashMap;
 use crate::orderbook::order::{Order, Side};
 use crate::orderbook::types::{Event, Fills, MarketUpdateAfterTrade, MatchResult} ;
-use crate::orderbook::order_book::OrderBook;
+use crate::orderbook::order_book::{self, OrderBook};
+use crate::shm::cancel_orders_queue::{self, CancelOrderQueue};
 use crossbeam::channel::{Sender , Receiver};
 use crossbeam::queue::ArrayQueue;
 use std::sync::Arc;
@@ -30,25 +31,36 @@ pub struct MyEngine{
     pub order_receiver :Receiver<Order>,
     pub bm_engine_order_queue : Arc<SpscQueue<Order>>,
     pub fill_queue : Arc<SpscQueue<Fills>>,
-    pub event_queue : Arc<SpscQueue<Event>>
+    pub event_queue : Arc<SpscQueue<Event>>,
+    pub cancel_order_queue : CancelOrderQueue
 }
 
 impl MyEngine{
-    pub fn new(event_publisher : Sender<Event>, engine_id : usize , sender_to_balance_manager: Sender<Fills> , order_receiver :Receiver<Order> , bm_engine_order_queue : Arc<SpscQueue<Order>>, fill_queue : Arc<SpscQueue<Fills>>,event_queue : Arc<SpscQueue<Event>>)->Self {
-        // initialise the publisher channel here 
-        
-            Self{
-                engine_id,
-                book_count : 0 ,
-                books : HashMap::new(),
-                event_publisher  ,
-                test_orderbook : OrderBook::new(100),
-                sender_to_balance_manager , 
-                order_receiver,
-                bm_engine_order_queue,
-                fill_queue,
-                event_queue
-            } 
+    pub fn new(event_publisher : Sender<Event>, engine_id : usize , sender_to_balance_manager: Sender<Fills> , order_receiver :Receiver<Order> , bm_engine_order_queue : Arc<SpscQueue<Order>>, fill_queue : Arc<SpscQueue<Fills>>,event_queue : Arc<SpscQueue<Event>>)->Option<Self> {
+
+            let cancel_orders_queue = CancelOrderQueue::open("/trading/CancelOrders");
+            match cancel_orders_queue {
+                Ok(queue)=>{
+                    Some(Self{
+                        engine_id,
+                        book_count : 0 ,
+                        books : HashMap::new(),
+                        event_publisher  ,
+                        test_orderbook : OrderBook::new(100),
+                        sender_to_balance_manager , 
+                        order_receiver,
+                        bm_engine_order_queue,
+                        fill_queue,
+                        event_queue , 
+                        cancel_order_queue : queue
+                    } )
+                }
+
+                Err(_)=>{
+                    eprint!("error in init engine because of cancel order queue");
+                    None
+                }
+            }
             
     }
     #[cfg_attr(feature = "hotpath", hotpath::measure)]
@@ -122,9 +134,24 @@ impl MyEngine{
                     count += 1;
                 }
             }
-            else{
-                std::hint::spin_loop();
+            match self.cancel_order_queue.dequeue(){
+                Ok(Some(order_to_be_canceled))=>{
+                    if let Some(order_book) = self.books.get_mut(&order_to_be_canceled.symbol){
+                        order_book.cancel_order(order_to_be_canceled.order_id);
+                        // integrate order_event_queue with engine also 
+                    }
+                }
+                Ok(None)=>{
+                    // no order to be canceled do smth
+                }
+                Err(_)=>{
+                    eprint!("cancel queue erorr 3")
+                }
             }
+            // spin loop 
+            //else{
+            //    std::hint::spin_loop();
+            //}
 
             if last_log.elapsed().as_secs() >= 2 {
                 let rate = count as f64 / last_log.elapsed().as_secs_f64();

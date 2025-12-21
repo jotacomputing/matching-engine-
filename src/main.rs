@@ -144,8 +144,7 @@ fn main(){
             bm_engine_order_queue_clone_for_engine,
             fill_queue_clone_for_engine,
             event_queue_clone_for_engine
-        );
-
+        ).unwrap();
         engine.add_book(0);
         engine.run_engine();
     });
