@@ -23,7 +23,7 @@ use crate::orderbook::order::{ Order, Side};
 use crate::balance_manager::types::{BalanceQuery , HoldingsQuery};
 use crate::shm::event_queue::OrderEvents;
 use crate::shm::query_queue::{self, QueryQueue, QueryType};
-use crate::shm::balance_response_queue::{self, BalanceResQueue, BalanceResponse, Bresponse};
+use crate::shm::balance_response_queue::{self, BalanceResQueue, BalanceResponse};
 use crate::singlepsinglecq::my_queue::SpscQueue;
 const MAX_USERS: usize = 100; // pre allocating for a max of 100 users 
 const MAX_SYMBOLS : usize = 100 ; 
@@ -37,7 +37,7 @@ pub struct UserBalance {
     pub reserved_balance: u64,         
     pub total_traded_today: u64,  
     pub order_count_today: u64,   
-}
+}// 48 bytes alligned to 64 
 impl Default for UserBalance{
     fn default()->Self{
         UserBalance { user_id: 0,
@@ -49,6 +49,8 @@ impl Default for UserBalance{
     }
 }
 
+#[repr(C)]
+// dont allign to 64 , huge data wont fit into cache line anyhow 
 #[derive(Debug , Clone, Copy)]
 pub struct UserHoldings{
     pub user_id: u64,     // 8 byte 
@@ -311,14 +313,14 @@ pub fn run_balance_manager(&mut self) {
             Ok(Some(rec_query))=>{
                 match rec_query.query_type{
                     QueryType::AddUser =>{
-                        // expose function
+                        // expose function to add a user 
                     }
                     QueryType::GetBalance =>{
                         let user_index = self.get_user_index(rec_query.user_id);
                         if user_index.is_ok(){
                             let user_balance = self.get_user_balance_copy_for_query(user_index.unwrap());
                             let _ = self.balance_response_queue.enqueue(BalanceResponse{
-                                query_id : rec_query.query_id , user_id : rec_query.user_id , response : Bresponse::Balance(user_balance)
+                                query_id : rec_query.query_id , user_id : rec_query.user_id , response_type : 0 , response : user_balance
                             });
                         
                         }
