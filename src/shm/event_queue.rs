@@ -22,23 +22,20 @@ pub struct QueueHeader {
 }
 
 #[repr(C)]
-#[derive(Debug , Clone)]
-pub enum EventType{
-    Rejected(BalanceManagerError) , 
-    CompletelyFilled(MatchResult),  // completely filled 
-    PartiallyFilled(MatchResult),   // partially matched 
-    Accepted(MatchResult), // cudnt match , added to book 
-    Canceled
+pub struct OrderEvents {
+    pub user_id: u64,
+    pub order_id: u64,
+    pub symbol: u32,
+
+    pub event_kind: u32, // accepted = 0  / partial = 1  / full = 2  / rejected = 3  / canceled = 4 
+
+    pub filled_qty: u32,
+    pub remaining_qty: u32,
+    pub original_qty: u32,
+
+    pub error_code: u32,     // error code for different balance manaer errors , insuff funds , user not found etc 
 }
 
-#[repr(C)]
-#[derive(Debug , Clone)]
-pub struct OrderEvents{
-    pub user_id : u64 ,
-    pub order_id : u64 ,
-    pub symbol : u32 , 
-    pub event_type : EventType, 
-}
 
 
 const QUEUE_MAGIC: u32 = 0xDEADBEEF;

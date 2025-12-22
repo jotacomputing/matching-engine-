@@ -1,5 +1,5 @@
 use crossbeam::{channel::Receiver, queue::ArrayQueue};
-use crate::{orderbook::{order::Side, types::{DepthData, Event, Fills, TickerData, TradeData}}, pubsub::pubsub_manager::RedisPubSubManager, shm::event_queue::{EventType, OrderEvents}};
+use crate::{orderbook::{order::Side, types::{DepthData, Event, Fills, TickerData, TradeData}}, pubsub::pubsub_manager::RedisPubSubManager, shm::event_queue::{ OrderEvents}};
 use std::{fmt::format, sync::Arc};
 use crate::singlepsinglecq::my_queue::SpscQueue;
 
@@ -50,7 +50,7 @@ impl EventPublisher {
                     }
                     {
                         // check if we even need to return fills to the user and then avod clone here 
-                        for fill in rec_event.market_update.match_result.fills.fills.clone(){
+                        for fill in rec_event.market_update.match_result.fills.fills{
                             let trade_stream = format!("trade.{}" , rec_event.market_update.symbol);
                             let trade_message = TradeData::new(
                                 String::from("trade"),  
@@ -79,28 +79,40 @@ impl EventPublisher {
                     let remaining_qty = rec_event.market_update.match_result.remaining_qty;
 
                     if remaining_qty == 0  {
-                        let _ = self.pub_writter_order_event_queue.push(OrderEvents { 
-                            user_id: rec_event.market_update.match_result.user_id, 
-                            order_id: rec_event.market_update.match_result.order_id, 
-                            symbol: rec_event.market_update.symbol, 
-                            event_type: EventType::CompletelyFilled(rec_event.market_update.match_result) 
-                        });
+                        let _ = self.pub_writter_order_event_queue.push(OrderEvents {
+                             user_id: rec_event.market_update.match_result.user_id, 
+                             order_id: rec_event.market_update.match_result.order_id, 
+                             symbol: rec_event.market_update.symbol, 
+                             event_kind: 2, 
+                             filled_qty: orignal_qty, 
+                             remaining_qty, 
+                             original_qty: orignal_qty,  
+                             error_code: 0
+                             });
                     }
                     else if remaining_qty == orignal_qty {
-                        let _ = self.pub_writter_order_event_queue.push(OrderEvents { 
+                        let _ = self.pub_writter_order_event_queue.push(OrderEvents {
                             user_id: rec_event.market_update.match_result.user_id, 
                             order_id: rec_event.market_update.match_result.order_id, 
                             symbol: rec_event.market_update.symbol, 
-                            event_type: EventType::Accepted(rec_event.market_update.match_result)
-                        });
+                            event_kind: 0, 
+                            filled_qty: 0, 
+                            remaining_qty, 
+                            original_qty: orignal_qty,  
+                            error_code: 0
+                            });
                     }
                     else if orignal_qty - remaining_qty > 0 {
-                        let _ = self.pub_writter_order_event_queue.push(OrderEvents { 
+                        let _ = self.pub_writter_order_event_queue.push(OrderEvents {
                             user_id: rec_event.market_update.match_result.user_id, 
                             order_id: rec_event.market_update.match_result.order_id, 
                             symbol: rec_event.market_update.symbol, 
-                            event_type: EventType::PartiallyFilled(rec_event.market_update.match_result) 
-                        });
+                            event_kind: 1, 
+                            filled_qty: orignal_qty - remaining_qty, 
+                            remaining_qty, 
+                            original_qty: orignal_qty,  
+                            error_code: 0
+                            });
                     }
                 }
                 

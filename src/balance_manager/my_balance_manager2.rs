@@ -14,7 +14,7 @@ use std::sync::Arc;
 use crossbeam::queue::ArrayQueue;
 use crossbeam_utils::Backoff;
 // no shared state in this approach , 
-use crate::shm::event_queue::EventType;
+
 use crate::shm::holdings_response_queue::{HoldingResQueue, HoldingResponse};
 use dashmap::DashMap;
 use crossbeam::channel::{Receiver, Sender};
@@ -300,7 +300,18 @@ pub fn run_balance_manager(&mut self) {
                         Err(_) => {
                             // insufficient funds — drop or log minimal
                             //eprintln!("[BM] Insufficient funds: {:?}", e);
-                            let _ = self.bm_writer_order_event_queue.push(OrderEvents { user_id: recieved_order.user_id, order_id:recieved_order.order_id, symbol: recieved_order.symbol, event_type: EventType::Rejected(BalanceManagerError::InsufficientFunds) });
+                            let _ = self.bm_writer_order_event_queue.push(
+                                OrderEvents { 
+                                    user_id: recieved_order.user_id,
+                                    order_id: recieved_order.order_id,
+                                    symbol: recieved_order.symbol,
+                                    event_kind: 3,
+                                    filled_qty: 0,
+                                    remaining_qty: recieved_order.shares_qty,
+                                    original_qty: recieved_order.shares_qty,
+                                    error_code: 1
+                                 }
+                            );
                         }
                     }
                     processed += 1;
