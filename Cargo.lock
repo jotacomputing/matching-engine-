@@ -179,6 +179,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
 
 [[package]]
+name = "bounded-spsc-queue"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4c9c650d1935bc66dec0e80beb9353b6c86fb9bcd0a4c0c7f5a70d9770e5194"
+
+[[package]]
 name = "bumpalo"
 version = "3.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1615,6 +1621,7 @@ dependencies = [
 name = "rust-orderbook-2"
 version = "0.1.0"
 dependencies = [
+ "bounded-spsc-queue",
  "chrono",
  "clap",
  "core_affinity",

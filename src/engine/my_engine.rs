@@ -1,3 +1,4 @@
+use bounded_spsc_queue::{Consumer, Producer};
 use chrono::prelude::*;
 use std::collections::HashMap;
 use crate::orderbook::order::{Order, Side};
@@ -25,14 +26,27 @@ pub struct MyEngine{
     pub book_count : usize, 
     pub books : HashMap<u32 , OrderBook>,
     pub test_orderbook : OrderBook,
+
     pub bm_engine_order_queue : Arc<SpscQueue<Order>>,
     pub fill_queue : Arc<SpscQueue<Fills>>,
     pub event_queue : Arc<SpscQueue<Event>>,
-    pub cancel_order_queue : CancelOrderQueue
+
+
+    pub cancel_order_queue : CancelOrderQueue,
+
+
+    pub bm_order_reciver_try : Consumer<Order>,
+    pub sending_fills_to_bm_try : Producer<Fills>,
+    pub sending_event_to_publisher_try : Producer<Event>,
 }
 
 impl MyEngine{
-    pub fn new( engine_id : usize , bm_engine_order_queue : Arc<SpscQueue<Order>>, fill_queue : Arc<SpscQueue<Fills>>,event_queue : Arc<SpscQueue<Event>>)->Option<Self> {
+    pub fn new( engine_id : usize , bm_engine_order_queue : Arc<SpscQueue<Order>>, 
+        fill_queue : Arc<SpscQueue<Fills>>,event_queue : Arc<SpscQueue<Event>>,
+        bm_order_reciver_try : Consumer<Order>,
+        sending_fills_to_bm_try : Producer<Fills>,
+        sending_event_to_publisher_try : Producer<Event>,
+        )->Option<Self> {
 
             let cancel_orders_queue = CancelOrderQueue::open("/tmp/trading/CancelOrders");
             match cancel_orders_queue {
@@ -45,7 +59,10 @@ impl MyEngine{
                         bm_engine_order_queue,
                         fill_queue,
                         event_queue , 
-                        cancel_order_queue : queue
+                        cancel_order_queue : queue , 
+                        bm_order_reciver_try , 
+                        sending_fills_to_bm_try , 
+                        sending_event_to_publisher_try 
                     } )
                 }
 
@@ -63,14 +80,17 @@ impl MyEngine{
         let mut count = 0u64;
         let mut last_log = std::time::Instant::now();
         loop {
-            
-            if let Some(mut recieved_order) = self.bm_engine_order_queue.pop(){
-                
+            // new queue use 
+           
+            if let Some(mut recieved_order) = self.bm_order_reciver_try.try_pop(){
+                //println!("got the order from bm");
+                count += 1;
                 if let Some(order_book) = self.get_book_mut(recieved_order.symbol){
                     let order_book_symbol = order_book.symbol;
                     let order_book_last_price = order_book.last_trade_price.load(Ordering::Relaxed);
                     let order_book_depth = order_book.get_depth();
                     let events = match recieved_order.order_type {
+                        
                         0 => order_book.match_market_order(&mut recieved_order),
                         1 =>{
                             // limit order 
@@ -85,9 +105,11 @@ impl MyEngine{
                             return; 
                         }
                     };
-                  
+                   
                     if let Ok(match_result)=events{
-                        let _ = self.fill_queue.push(match_result.fills.clone());
+                        //println!("sending fills to bm");
+                        //println!("{:?}" , match_result);
+                        let _ = self.sending_fills_to_bm_try.push(match_result.fills.clone());
                         let now_utc = Utc::now();
                     
                         let market_update = MarketUpdateAfterTrade::new(
@@ -98,10 +120,11 @@ impl MyEngine{
                             now_utc.timestamp(), 
                             match_result
                         );
-                        let _ = self.event_queue.push(Event::new(market_update));
+                        //println!("sending events to publisher");
+                        let _ = self.sending_event_to_publisher_try.push(Event::new(market_update));
                        // println!("sedning events to publisher ");
                     }
-                    count += 1;
+                    
                 }
             }    
             match self.cancel_order_queue.dequeue(){

@@ -11,6 +11,7 @@
 // avalable means free balance or holdings that can be reserved 
 
 use std::sync::Arc;
+use bounded_spsc_queue::{Consumer, Producer};
 //use crossbeam::queue::ArrayQueue;
 use crossbeam_utils::Backoff;
 use crate::shm::holdings_response_queue::{HoldingResQueue, HoldingResponse};
@@ -93,17 +94,34 @@ impl Default for BalanceState {
 }
 pub struct MyBalanceManager2{
     pub state : BalanceState,
+
     pub fill_queue : Arc<SpscQueue<Fills>>,
     pub shm_bm_order_queue : Arc<SpscQueue<Order>>,
     pub bm_engine_order_queue : Arc<SpscQueue<Order>>,
     pub bm_writer_order_event_queue : Arc<SpscQueue<OrderEvents>>,
+
+
+
     pub query_queue : QueryQueue,
     pub balance_response_queue : BalanceResQueue,
     pub holding_response_queue : HoldingResQueue,
+
+
+    pub fill_recv_from_engine_try : Consumer<Fills>,
+    pub order_recv_from_shm_try : Consumer<Order>,
+    pub order_send_to_engine_try : Producer<Order>,
+    pub events_to_wrriter_try : Producer<OrderEvents>
 }
 
 impl MyBalanceManager2{
-    pub fn new(fill_queue : Arc<SpscQueue<Fills>>,shm_bm_order_queue : Arc<SpscQueue<Order>>,bm_engine_order_queue : Arc<SpscQueue<Order>> , bm_writer_order_event_queue : Arc<SpscQueue<OrderEvents>>)->Self{
+    pub fn new(fill_queue : Arc<SpscQueue<Fills>>,shm_bm_order_queue : Arc<SpscQueue<Order>>,
+        bm_engine_order_queue : Arc<SpscQueue<Order>> , 
+        bm_writer_order_event_queue : Arc<SpscQueue<OrderEvents>>,
+        fill_recv_from_engine_try : Consumer<Fills>,
+        order_recv_from_shm_try : Consumer<Order>,
+        order_send_to_engine_try : Producer<Order>,
+        events_to_wrriter_try : Producer<OrderEvents>
+    )->Self{
         let query_queue = QueryQueue::open("/tmp/Queries");
         let holding_response_queue = HoldingResQueue::open("/tmp/HoldingsResponse");
         let balance_response_queue = BalanceResQueue::open("/tmp/BalanceResponse");
@@ -121,7 +139,17 @@ impl MyBalanceManager2{
         }
         let balance_state = BalanceState::new();
         Self { state: balance_state
-        ,fill_queue , shm_bm_order_queue , bm_engine_order_queue , bm_writer_order_event_queue , query_queue: query_queue.unwrap() , holding_response_queue: holding_response_queue.unwrap() , balance_response_queue : balance_response_queue.unwrap()}
+        ,fill_queue , shm_bm_order_queue ,
+         bm_engine_order_queue ,
+         bm_writer_order_event_queue , 
+         query_queue: query_queue.unwrap() , 
+         holding_response_queue: holding_response_queue.unwrap() , 
+         balance_response_queue : balance_response_queue.unwrap() , 
+         fill_recv_from_engine_try ,
+         order_recv_from_shm_try,
+         order_send_to_engine_try,
+         events_to_wrriter_try
+        }
     }
     pub fn get_user_index(&self , user_id : u64 )->Result<u32 , BalanceManagerError>{
         self.state.user_id_to_index
@@ -264,7 +292,8 @@ pub fn run_balance_manager(&mut self) {
 
 
         // 1) Drain all fills first (highest priority) — drain loop (fast)
-        while let Some(recieved_fill) = self.fill_queue.pop() {
+        while let Some(recieved_fill) = self.fill_recv_from_engine_try.try_pop() {
+            //println!("recvied fills");
             let update_start = std::time::Instant::now();
             let _ = self.update_balances_after_trade(recieved_fill);
             update_balance_time += update_start.elapsed();
@@ -274,26 +303,32 @@ pub fn run_balance_manager(&mut self) {
         // 2) Process up to BATCH_ORDERS new orders (so fills remain highest priority, but orders are not starved)
         let mut processed = 0usize;
         while processed < BATCH_ORDERS {
-            match self.shm_bm_order_queue.pop() {
+            match self.order_recv_from_shm_try.try_pop() {
+
                 Some(recieved_order) => {
+                    //println!("got the order from reader");
                     let lock_start = std::time::Instant::now();
                     match self.check_and_lock_funds(recieved_order) {
+                        
                         Ok(()) => {
+                            //println!("funds locked");
                             lock_funds_time += lock_start.elapsed();
                             let send_start = std::time::Instant::now();
-                            if self.bm_engine_order_queue.push(recieved_order).is_err() {
-                                // engine queue full — record and drop or handle backpressure
-                                // one-time log to avoid spam
-                                eprintln!("[BM] bm_engine queue full — order dropped or backpressure needed");
-                            } else {
-                                channel_send_time += send_start.elapsed();
-                            }
+                            //if self.order_send_to_engine_try.try_push(recieved_order).is_err() {
+                            //    // engine queue full — record and drop or handle backpressure
+                            //    // one-time log to avoid spam
+                            //    eprintln!("[BM] bm_engine queue full — order dropped or backpressure needed");
+                            //} else {
+                            //    channel_send_time += send_start.elapsed();
+                            //}
+                           //println!("sending to enfine ");
+                            self.order_send_to_engine_try.try_push(recieved_order);
                             count += 1;
                         }
                         Err(_) => {
                             // insufficient funds — drop or log minimal
                             //eprintln!("[BM] Insufficient funds: {:?}", e);
-                            let _ = self.bm_writer_order_event_queue.push(
+                            let _ = self.events_to_wrriter_try.push(
                                 OrderEvents { 
                                     user_id: recieved_order.user_id,
                                     order_id: recieved_order.order_id,

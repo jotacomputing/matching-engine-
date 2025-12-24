@@ -17,7 +17,7 @@ use rust_orderbook_2::shm::balance_response_queue::{BalanceResQueue};
 use rust_orderbook_2::shm::reader::ShmReader;
 use rust_orderbook_2::shm::writer::ShmWriter;
 use rust_orderbook_2::singlepsinglecq::my_queue::SpscQueue;
-//use crossbeam::queue::ArrayQueue; // try this tooo for final decision 
+use bounded_spsc_queue;
 
 #[hotpath::main]
 fn main(){
@@ -40,7 +40,7 @@ fn main(){
     let publisher_writer_order_event_queue = Arc::new(SpscQueue::<OrderEvents>::new(32768));
 
 
-
+    //Queue clones (sender , reciver handeles)
     let fill_queue_clone_for_engine = Arc::clone(&fill_queue);
     let fill_queue_clone_for_bm = Arc::clone(&fill_queue);
 
@@ -56,30 +56,35 @@ fn main(){
     let bm_writter_order_event_queue_clone_for_bm = Arc::clone(&bm_writter_order_event_queue);
     let bm_writter_order_event_queue_clone_for_writter = Arc::clone(&bm_writter_order_event_queue);
 
-
     let publisher_writer_order_event_queue_clone_for_pub = Arc::clone(&publisher_writer_order_event_queue);
     let publisher_writer_order_event_queue_clone_for_writter = Arc::clone(&publisher_writer_order_event_queue);
 
     // SHM READER ONLY REQUIRES AN ORDER SENDER 
+
+    
+
+    let (fill_producer_engine , fill_consumer_bm ) = bounded_spsc_queue::make::<Fills>(32768);
+    let (event_producer_engine , event_consumer_publisher) = bounded_spsc_queue::make::<Event>(32768);
+    let (order_producer_bm , order_consumer_engine) = bounded_spsc_queue::make::<Order>(32768);
+    let (order_producer_shm_reader , order_consumer_bm) = bounded_spsc_queue::make::<Order>(32768);
+    let (order_event_producer_bm , order_event_consumer_writter_from_bm) = bounded_spsc_queue::make::<OrderEvents>(32768);
+    let (order_event_producer_publisher , order_event_consumer_writter_from_publisher) = bounded_spsc_queue::make::<OrderEvents>(32768);
+
+
+
      let shm_reader_handle = std::thread::spawn(move || {
         core_affinity::set_for_current(core_affinity::CoreId { id: 2 });
 
        
         let mut my_shm_reader = ShmReader::new(
-            shm_bm_order_queue_clone_for_reader
+            shm_bm_order_queue_clone_for_reader , 
+            order_producer_shm_reader
         ).unwrap();
 
         my_shm_reader.run_reader();
     });
 
-    // BALANCE MANAGER REQUIRES ORDER RECIVER , ORDER SENDER AND FILL RECIVER 
-    //let balance_manager_handle = std::thread::spawn(move ||{
-    //    core_affinity::set_for_current(core_affinity::CoreId { id: 6 });
-    //    let mut my_balance_manager = MyBalanceManager::new(bm_to_engine_sender_clone, fill_reciver_clone, shm_to_bm_receiver_clone);
-    //    my_balance_manager.0.add_throughput_test_users();
-    //    my_balance_manager.0.run_balance_manager();
-    //    // my_balance_manager.1 is the shared state which needs to be passed to the GRPC server for normal queries 
-    //});
+    // BALANCE MANAGER HANDLE 
 
     let balance_manager_handle = std::thread::spawn(move || {
         core_affinity::set_for_current(core_affinity::CoreId { id: 6 });
@@ -88,13 +93,18 @@ fn main(){
             fill_queue_clone_for_bm,
             shm_bm_order_queue_clone_for_bm,
             bm_engine_order_queue_clone_for_bm,
-            bm_writter_order_event_queue_clone_for_bm
+            bm_writter_order_event_queue_clone_for_bm,
+            fill_consumer_bm , 
+            order_consumer_bm,
+            order_producer_bm,
+            order_event_producer_bm
         );
 
         my_balance_manager.add_throughput_test_users();
         my_balance_manager.run_balance_manager();
     });
 
+    // ENGINE HANDLES 
     let mut running_engines: Vec<JoinHandle<()>> = Vec::new();
 
     let first_join_handle = std::thread::spawn(move || {
@@ -104,11 +114,17 @@ fn main(){
             0,
             bm_engine_order_queue_clone_for_engine,
             fill_queue_clone_for_engine,
-            event_queue_clone_for_engine
+            event_queue_clone_for_engine ,
+            order_consumer_engine,
+            fill_producer_engine,
+            event_producer_engine
         ).unwrap();
         engine.add_book(0);
         engine.run_engine();
     });
+
+
+
 
     running_engines.push(first_join_handle);
     let pubsub_connection = RedisPubSubManager::new("redis://localhost:6379");
@@ -122,15 +138,22 @@ fn main(){
         let mut my_publisher = EventPublisher::new(
             event_queue_clone_for_publisher,
             pubsub_connection.unwrap() , 
-            publisher_writer_order_event_queue_clone_for_pub
+            publisher_writer_order_event_queue_clone_for_pub,
+            event_consumer_publisher,
+            order_event_producer_publisher
         );
 
         my_publisher.start_publisher();
     });
-
+    // SHM WRITTER TO WRITE TO QUEUES 
     let writter_handle = std::thread::spawn(move|| {
         core_affinity::set_for_current(core_affinity::CoreId { id: 7 });
-        let  shm_writter = ShmWriter::new(bm_writter_order_event_queue_clone_for_writter,publisher_writer_order_event_queue_clone_for_writter);
+        let  shm_writter = ShmWriter::new(
+            bm_writter_order_event_queue_clone_for_writter,
+            publisher_writer_order_event_queue_clone_for_writter,
+            order_event_consumer_writter_from_bm,
+            order_event_consumer_writter_from_publisher
+        );
         if shm_writter.is_some(){
             shm_writter.unwrap().start_shm_writter();
         }
@@ -138,7 +161,6 @@ fn main(){
             eprintln!("error initialising shm writter")
         }
     });
-
     // AWAITING THE MAIN THREAD FOR INFINITE TIME UNTILL ALL THESE THREADS JOIN 
     for handle in running_engines {
         handle.join().expect("Engine thread panicked");
