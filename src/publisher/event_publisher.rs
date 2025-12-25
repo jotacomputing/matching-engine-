@@ -38,18 +38,21 @@ impl EventPublisher {
                         }
                     }
                     {
-                        let depth_message = DepthData::new(
-                            String::from("depth"), 
-                            rec_event.market_update.symbol, 
-                            rec_event.market_update.event_time, 
-                            rec_event.market_update.trade_time, 
-                            rec_event.market_update.depth.0, 
-                            rec_event.market_update.depth.1
-                        );
-                        let depth_stream = format!("depth.{}" , rec_event.market_update.symbol);
-                        if let Ok(payload) = serde_json::to_vec(&depth_message){
-                            let _ = self.mypubsub.publish(&depth_stream, payload);
-                        }
+                        
+                            let depth = rec_event.market_update.depth;
+                            let depth_message = DepthData::new(
+                                String::from("depth"), 
+                                rec_event.market_update.symbol, 
+                                rec_event.market_update.event_time, 
+                                rec_event.market_update.trade_time, 
+                                depth.0,
+                                depth.1
+                            );
+                            let depth_stream = format!("depth.{}" , rec_event.market_update.symbol);
+                            if let Ok(payload) = serde_json::to_vec(&depth_message){
+                                let _ = self.mypubsub.publish(&depth_stream, payload);
+                            }
+                        
                     }
                     {
                         // check if we even need to return fills to the user and then avod clone here 

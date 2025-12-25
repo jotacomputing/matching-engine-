@@ -99,7 +99,6 @@ impl StShmReader{
     #[inline(always)]
     pub fn receive_order(&mut self)->Option<Order>{
         match self.queue.dequeue() {
-            
             Ok(Some(shm_order)) => {
                 let order_side = match  shm_order.side {
                     0 => {
@@ -111,7 +110,6 @@ impl StShmReader{
                     _=>{
                         return None;
                     }
-                    
                 };
                 let order = Order::new(
                     shm_order.user_id,
@@ -124,10 +122,7 @@ impl StShmReader{
                     shm_order.symbol,
                 );
                 // send to balance manager 
-                return Some(order);
-                
-
-                
+                return Some(order);                
             }
             Ok(None)=>{
                 

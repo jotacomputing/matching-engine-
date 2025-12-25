@@ -37,14 +37,10 @@ fn main(){
     let (order_event_producer_bm , order_event_consumer_writter_from_bm) = bounded_spsc_queue::make::<OrderEvents>(32768);
     let (order_event_producer_publisher , order_event_consumer_writter_from_publisher) = bounded_spsc_queue::make::<OrderEvents>(32768);
 
-
-
-     let shm_reader_handle = std::thread::spawn(move || {
+    let shm_reader_handle = std::thread::spawn(move || {
         core_affinity::set_for_current(core_affinity::CoreId { id: 2 });
 
-       
-        let mut my_shm_reader = ShmReader::new(
-              
+        let mut my_shm_reader = ShmReader::new(      
             order_producer_shm_reader
         ).unwrap();
 

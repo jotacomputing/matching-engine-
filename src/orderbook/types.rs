@@ -71,9 +71,10 @@ impl MatchResult{
     }
 }
 
-#[derive(Debug , Error)]
+#[derive(Debug)]
 pub enum OrderBookError{
     // aff errors that can occour 
+    InvalidOrder
 }
 
 

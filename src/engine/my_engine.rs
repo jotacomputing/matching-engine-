@@ -2,13 +2,10 @@ use bounded_spsc_queue::{Consumer, Producer};
 use chrono::prelude::*;
 use std::collections::HashMap;
 use crate::orderbook::order::{Order, Side};
-use crate::orderbook::types::{Event, Fills, MarketUpdateAfterTrade, MatchResult} ;
+use crate::orderbook::types::{Event, Fills, MarketUpdateAfterTrade, MatchResult, OrderBookError} ;
 use crate::orderbook::order_book::{ OrderBook};
 use crate::shm::cancel_orders_queue::{ CancelOrderQueue};
-//use crossbeam::queue::ArrayQueue;
-use std::sync::Arc;
-use std::sync::atomic::Ordering;
-use crate::singlepsinglecq::my_queue::SpscQueue;
+use std::time::{Instant, Duration};
 
 
 pub trait Engine{
@@ -68,14 +65,12 @@ impl MyEngine{
 
         let mut count = 0u64;
         let mut last_log = std::time::Instant::now();
+
         loop {
             // new queue use 
             if let Some(mut recieved_order) = self.bm_order_reciver_try.try_pop(){
                 count += 1;
                 if let Some(order_book) = self.get_book_mut(recieved_order.symbol){
-                    let order_book_symbol = order_book.symbol;
-                    let order_book_last_price = order_book.last_trade_price.load(Ordering::Relaxed);
-                    let order_book_depth = order_book.get_depth();
                     let events = match recieved_order.order_type {
                         0 => order_book.match_market_order(&mut recieved_order),
                         1 =>{
@@ -94,6 +89,9 @@ impl MyEngine{
                    
                     if let Ok(match_result)=events{
                         // direct push cant drop
+                        let order_book_symbol = order_book.symbol;
+                        let order_book_last_price = order_book.last_trade_price;
+                        let order_book_depth = order_book.get_depth();
                         let _ = self.sending_fills_to_bm_try.push(match_result.fills.clone());
                         let now_utc = Utc::now();
                     
@@ -177,32 +175,61 @@ pub struct STEngine{
     pub engine_id :usize ,
     pub book_count : usize, 
     pub books : HashMap<u32 , OrderBook>,
+    pub cancel_order_queue : CancelOrderQueue,
+    pub sending_event_to_publisher_try : Producer<Event>,
 }
 impl STEngine{
-    pub fn new( engine_id : usize )->Self {
+    pub fn new( engine_id : usize , event_sender_to_publisher : Producer<Event> )->Self {
         // initialise the publisher channel here 
-        
+            let cancel_order_queue = CancelOrderQueue::open("/tmp/CancelOrders");
+            if cancel_order_queue.is_err(){
+                eprintln!("Error initialising the cancel order queue in the Stengine ");   
+            }
             Self{
                 engine_id,
                 book_count : 0 ,
                 books : HashMap::new(),
-                
+                cancel_order_queue : cancel_order_queue.unwrap(),
+                sending_event_to_publisher_try : event_sender_to_publisher
             } 
-            
     }
     #[inline(always)]
-    pub fn process_order(&mut self , mut recieved_order : Order)->Option<MatchResult>{
+    pub fn process_order(&mut self , mut recieved_order : Order)->(Option<MatchResult> , Option<MarketUpdateAfterTrade>){
       
         if let Some(order_book) = self.get_book_mut(recieved_order.symbol){
-            let events = match recieved_order.side {
-                Side::Bid => order_book.match_bid(&mut recieved_order),
-                Side::Ask => order_book.match_ask(&mut recieved_order)
+            
+            let events = match recieved_order.order_type {
+                0 => order_book.match_market_order(&mut recieved_order),
+                1 => match recieved_order.side {
+                    Side::Ask => order_book.match_ask(&mut recieved_order),
+                    Side::Bid => order_book.match_bid(&mut recieved_order)
+                }
+                _ => {
+                    eprint!("Invalid order struct");
+                    Err(OrderBookError::InvalidOrder)
+                }
+            
             };
-           
-            return events.ok();
-           // println!("order matched events created ")
+
+            if let Ok(match_result) = events {
+                let now_utc = Utc::now();
+                let order_book_symbol = order_book.symbol;
+                let order_book_last_price = order_book.last_trade_price;
+                let order_book_depth = order_book.get_depth();
+                let market_update = MarketUpdateAfterTrade::new(
+                    order_book_symbol, 
+                    order_book_last_price,
+                    order_book_depth,
+                    now_utc.timestamp(), 
+                    now_utc.timestamp(), 
+                    match_result.clone()
+                );
+
+                return (Some(match_result), Some(market_update));
+            }
+            
         }
-        None
+        (None , None)
     }
 }
 

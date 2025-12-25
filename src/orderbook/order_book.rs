@@ -11,7 +11,7 @@ pub struct OrderBook{
     pub symbol : u32 , 
     pub askside : BookSide,
     pub bidside : BookSide,
-    pub last_trade_price : AtomicU64,
+    pub last_trade_price : u64,
     pub manager : OrderManager,
     pub fill_buffer : Vec<Fill>,
 
@@ -23,7 +23,7 @@ impl OrderBook{
             symbol ,
             askside: BookSide::new(Side::Ask),
             bidside: BookSide::new(Side::Bid) ,
-            last_trade_price: AtomicU64::new(0),
+            last_trade_price: 0,
             manager : OrderManager::new(),
             fill_buffer : Vec::with_capacity(50),
 
@@ -130,7 +130,6 @@ impl OrderBook{
         //let mut fills =  Fills::new();
         let opposite_side = &mut  self.askside ;
         // we have a bid to match , the best price shud be the loweest ask 
-        
         while order.shares_qty > 0 {
             let best_price = match opposite_side.get_best_price(){
                 Some(price) => price,
@@ -218,10 +217,7 @@ impl OrderBook{
             self.bidside.insert(remaining_order , &mut self.manager);
         }
         if !self.fill_buffer.is_empty(){
-            self.last_trade_price.store(
-                self.fill_buffer.last().unwrap().price,
-                Ordering::Relaxed,
-            );
+            self.last_trade_price = self.fill_buffer.last().unwrap().price;
         }
 
         Ok(MatchResult{
@@ -319,10 +315,7 @@ impl OrderBook{
             self.askside.insert(remaining_order, &mut self.manager);
         }
         if !self.fill_buffer.is_empty(){
-            self.last_trade_price.store(
-                self.fill_buffer.last().unwrap().price,
-                Ordering::Relaxed,
-            );
+            self.last_trade_price =  self.fill_buffer.last().unwrap().price; 
         }
         Ok(MatchResult{
             order_id : order.order_id , user_id : order.user_id ,fills : {Fills { fills: self.fill_buffer.clone() }} , remaining_qty : order.shares_qty , orignal_qty:orignal_shares_qty
@@ -338,7 +331,7 @@ impl OrderBook{
     }
 
     pub fn get_last_trade_price(&self)->Option<u64>{
-        Some(self.last_trade_price.load(Ordering::Relaxed))
+        Some(self.last_trade_price)
     }
 
     pub fn get_depth(&self)->(Vec<[String ; 3]> , Vec<[String ; 3]>){

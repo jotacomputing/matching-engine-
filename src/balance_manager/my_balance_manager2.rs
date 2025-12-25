@@ -16,7 +16,7 @@ use dashmap::DashMap;
 use crate::orderbook::types::{BalanceManagerError, Fills, };
 use crate::orderbook::order::{ Order, Side};
 use crate::shm::event_queue::OrderEvents;
-use crate::shm::query_queue::{ QueryQueue, QueryType};
+use crate::shm::query_queue::{ self, QueryQueue, QueryType};
 use crate::shm::balance_response_queue::{ BalanceResQueue, BalanceResponse};
 const MAX_USERS: usize = 100; 
 const MAX_SYMBOLS : usize = 100 ; 
@@ -399,13 +399,38 @@ pub fn run_balance_manager(&mut self) {
 
 
 pub struct STbalanceManager{
-    state : BalanceState
+    state : BalanceState,
+    pub query_queue : QueryQueue,
+    pub balance_response_queue : BalanceResQueue,
+    pub holding_response_queue : HoldingResQueue,
+    pub events_to_wrriter_try : Producer<OrderEvents>
 }
 
 impl STbalanceManager{
-    pub fn new()->Self{
+    pub fn new(events_to_wrriter_try : Producer<OrderEvents>)->Self{
+        let query_queue = QueryQueue::open("/tmp/Queries");
+        let holding_response_queue = HoldingResQueue::open("/tmp/HoldingsResponse");
+        let balance_response_queue = BalanceResQueue::open("/tmp/BalanceResponse");
+        if query_queue.is_err(){
+            eprintln!("query quque init error in balance manager");
+            eprintln!("{:?}" , query_queue)
+        }
+        if balance_response_queue.is_err(){
+            eprintln!("response queue init error in balance manager");
+            eprintln!("{:?}" , balance_response_queue)
+        }
+        if holding_response_queue.is_err(){
+            eprintln!("response queue init error in balance manager");
+            eprintln!("{:?}" , holding_response_queue)
+        }
         let balance_state = BalanceState::new();
-        Self {  state: balance_state  }
+        Self {  
+            state: balance_state , 
+            query_queue : query_queue.unwrap() , 
+            balance_response_queue : balance_response_queue.unwrap() , 
+            holding_response_queue : holding_response_queue.unwrap()  ,
+            events_to_wrriter_try
+        }
     }
     #[inline(always)]
     pub fn get_user_index(&self , user_id : u64 )->Result<u32 , BalanceManagerError>{
