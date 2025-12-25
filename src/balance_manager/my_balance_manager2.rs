@@ -568,6 +568,18 @@ impl STbalanceManager{
                  response:UserBalance::default()
             };
 
+            let mut taker_holdings_update = HoldingResponse{
+                query_id : 0 ,
+                user_id  : fill.taker_user_id,
+                response : UserHoldings::default()
+            };
+
+            let mut maker_holdings_update = HoldingResponse{
+                query_id : 0 ,
+                user_id  : fill.maker_user_id,
+                response : UserHoldings::default()
+            };
+
 
             match fill.taker_side {
                 Side::Ask => {
@@ -575,69 +587,87 @@ impl STbalanceManager{
                     // add money , he sold 
                     
                     
-                {
-                    let  taker_balance = self.get_user_balance(taker_index);
-                    let taker_avail_bal = taker_balance.available_balance;
-                    taker_balance.available_balance = taker_avail_bal + fill_value;
-                    taker_balance_update.response.available_balance = taker_balance.available_balance;
-                    taker_balance_update.response.reserved_balance = taker_balance.reserved_balance;
+                    {
+                        let  taker_balance = self.get_user_balance(taker_index);
+                        let taker_avail_bal = taker_balance.available_balance;
+                        taker_balance.available_balance = taker_avail_bal + fill_value;
+                        taker_balance_update.response.available_balance = taker_balance.available_balance;
+                        taker_balance_update.response.reserved_balance = taker_balance.reserved_balance;
 
-                }
-                    
-                    // remove holdings from resevred
-                    {let  taker_holdings = self.get_user_holdings(taker_index);
-                    let taker_reserved_holdings = taker_holdings.reserved_holdings[fill.symbol as usize];
-                    taker_holdings.reserved_holdings[fill.symbol as usize] = taker_reserved_holdings - fill.quantity;}
-                    
-                {   
-                    let  maker_balance = self.get_user_balance(maker_index);
-                    let maker_reserved_bal = maker_balance.reserved_balance;
-                    maker_balance.reserved_balance= maker_reserved_bal - fill_value;
-                    maker_balance_update.response.available_balance = maker_balance.available_balance;
-                    maker_balance_update.response.reserved_balance = maker_balance.reserved_balance;
-                }
-                    
-                    // add shares , he bough 
-                    {let  maker_holdings = self.get_user_holdings(maker_index);
-                    let maker_avail_holdings = maker_holdings.available_holdings[fill.symbol as usize];
-                    maker_holdings.available_holdings[fill.symbol as usize]= maker_avail_holdings + fill.quantity}
+                    }
 
+                        // remove holdings from resevred
+                    {   
+                        let  taker_holdings = self.get_user_holdings(taker_index);
+                        let taker_reserved_holdings = taker_holdings.reserved_holdings[fill.symbol as usize];
+                        taker_holdings.reserved_holdings[fill.symbol as usize] = taker_reserved_holdings - fill.quantity;
+                        taker_holdings_update.response.reserved_holdings[fill.symbol as usize] = taker_holdings.reserved_holdings[fill.symbol as usize];
+                        taker_holdings_update.response.available_holdings[fill.symbol as usize] = taker_holdings.available_holdings[fill.symbol as usize];
+                    }
 
+                    {   
+                        let  maker_balance = self.get_user_balance(maker_index);
+                        let maker_reserved_bal = maker_balance.reserved_balance;
+                        maker_balance.reserved_balance= maker_reserved_bal - fill_value;
+                        maker_balance_update.response.available_balance = maker_balance.available_balance;
+                        maker_balance_update.response.reserved_balance = maker_balance.reserved_balance;
+                    }
+
+                        // add shares , he bough 
+                    {
+                        let  maker_holdings = self.get_user_holdings(maker_index);
+                        let maker_avail_holdings = maker_holdings.available_holdings[fill.symbol as usize];
+                        maker_holdings.available_holdings[fill.symbol as usize]= maker_avail_holdings + fill.quantity;
+                        maker_holdings_update.response.available_holdings[fill.symbol as usize] = maker_holdings.available_holdings[fill.symbol as usize];
+                        maker_holdings_update.response.reserved_holdings[fill.symbol as usize] = maker_holdings.reserved_holdings[fill.symbol as usize];
+                    }
                         
                 }   
                 
                 Side::Bid => {
                     // Taker is buying , incoming is a buying order 
 
-                   { let  taker_balance = self.get_user_balance(taker_index);
-                    let taker_reserved_bal = taker_balance.reserved_balance;
-                    taker_balance.reserved_balance= taker_reserved_bal - fill_value;
-                    taker_balance_update.response.available_balance = taker_balance.available_balance;
-                    taker_balance_update.response.reserved_balance = taker_balance.reserved_balance;
-                }
-                        
+                    { 
+                        let  taker_balance = self.get_user_balance(taker_index);
+                        let taker_reserved_bal = taker_balance.reserved_balance;
+                        taker_balance.reserved_balance= taker_reserved_bal - fill_value;
+                        taker_balance_update.response.available_balance = taker_balance.available_balance;
+                        taker_balance_update.response.reserved_balance = taker_balance.reserved_balance;
+                    }
+
+
+                    {
+                        let  taker_holdings = self.get_user_holdings(taker_index);
+                        let taker_avail_holdings = taker_holdings.available_holdings[fill.symbol as usize];
+                        taker_holdings.available_holdings[fill.symbol as usize]= taker_avail_holdings + fill.quantity;
+                        taker_holdings_update.response.reserved_holdings[fill.symbol as usize] = taker_holdings.reserved_holdings[fill.symbol as usize];
+                        taker_holdings_update.response.available_holdings[fill.symbol as usize] = taker_holdings.available_holdings[fill.symbol as usize];
+                    }
+
+                    {   let  maker_balance = self.get_user_balance(maker_index);
+                        let maker_avail_bal = maker_balance.available_balance;
+                        maker_balance.available_balance= maker_avail_bal + fill_value;
+                        maker_balance_update.response.available_balance = maker_balance.available_balance;
+                        maker_balance_update.response.reserved_balance = maker_balance.reserved_balance;
+                    }
+                
+
+                    {
+                        let  maker_holdings = self.get_user_holdings(maker_index);
+                        let maker_reserved_holdings = maker_holdings.reserved_holdings[fill.symbol as usize];
+                        maker_holdings.reserved_holdings[fill.symbol as usize]= maker_reserved_holdings - fill.quantity;
+                        maker_holdings_update.response.available_holdings[fill.symbol as usize] = maker_holdings.available_holdings[fill.symbol as usize];
+                        maker_holdings_update.response.reserved_holdings[fill.symbol as usize] = maker_holdings.reserved_holdings[fill.symbol as usize];
                     
-                    {let  taker_holdings = self.get_user_holdings(taker_index);
-                    let taker_avail_holdings = taker_holdings.available_holdings[fill.symbol as usize];
-                    taker_holdings.available_holdings[fill.symbol as usize]= taker_avail_holdings + fill.quantity;}
-                    
-                    {let  maker_balance = self.get_user_balance(maker_index);
-                    let maker_avail_bal = maker_balance.available_balance;
-                    maker_balance.available_balance= maker_avail_bal + fill_value;
-                    maker_balance_update.response.available_balance = maker_balance.available_balance;
-                    maker_balance_update.response.reserved_balance = maker_balance.reserved_balance;
-                }
-    
-                    
-                    {let  maker_holdings = self.get_user_holdings(maker_index);
-                    let maker_reserved_holdings = maker_holdings.reserved_holdings[fill.symbol as usize];
-                    maker_holdings.reserved_holdings[fill.symbol as usize]= maker_reserved_holdings - fill.quantity;}
+                    }
                 }
             }
 
             // send udates to the writter for the maker and the taker indexes 
             let _ = self.balance_updates_sender.try_push(maker_balance_update);
             let _ = self.balance_updates_sender.try_push(taker_balance_update);
+            let _ = self.holding_update_sender.try_push(maker_holdings_update);
+            let _ = self.holding_update_sender.try_push(taker_holdings_update);
             
         }
         
@@ -695,11 +725,9 @@ impl STbalanceManager{
                 let old_reserved_balance = self.get_user_balance(user_index).reserved_balance;
                 let old_available_balance = self.get_user_balance(user_index).available_balance;
 
-
-                self.state.balances[user_index as usize].available_balance = old_available_balance + price;
-                self.state.balances[user_index as usize].reserved_balance = old_reserved_balance - price;
+                self.state.balances[user_index as usize].available_balance = old_available_balance + price*qty as u64;
+                self.state.balances[user_index as usize].reserved_balance = old_reserved_balance - price*qty as u64;
                 
-               
             }
         };
 
