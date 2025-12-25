@@ -105,6 +105,18 @@ impl TradingCore {
                         match self.balance_manager.update_balance_after_order_cancel(order_to_be_canceled, order_detials.side, order_detials.shares_qty, order_detials.price) {
                             Ok(_)=>{
                                 order_book.cancel_order(order_to_be_canceled.order_id);
+                                // order can be aprtialyl filled also when cancl order comes 
+                                // need to chnage the order struct to include '
+                                self.engine.sending_order_events_to_writter_try.try_push(OrderEvents { 
+                                    user_id: order_to_be_canceled.user_id, 
+                                    order_id: order_to_be_canceled.order_id, 
+                                    symbol: order_to_be_canceled.symbol, 
+                                    event_kind: 4, 
+                                    filled_qty: 0, 
+                                    remaining_qty: 0, 
+                                    original_qty: 0, 
+                                    error_code: 0
+                                 });
                             }
                             Err(_)=>{
 
