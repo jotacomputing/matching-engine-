@@ -507,10 +507,9 @@ impl STbalanceManager{
     pub fn check_and_lock_funds(&mut self , order : Order)->Result<() , BalanceManagerError>{
         // currently for limit orders , we get an order 
         // we have user id , symbol , side , holfings 
-        let user_index = self.get_user_index(order.user_id)?;   // fatal error , return immidieately to the function who is calling
-        //println!("user exists");
-        //println!("user balance ");
-    
+        let user_index = self.get_user_index(order.user_id)?; 
+        // this functio would return the UserNotFound error 
+          // fatal error , return immidieately to the function who is calling
         
         match order.side {
             Side::Ask =>{
@@ -539,7 +538,7 @@ impl STbalanceManager{
                 }
                 // we can reserv and and pass on the order to the matching egnine 
                 balance.available_balance = avalaible_balance - required_balance;
-                balance.reserved_balance = reserved_balance+required_balance;   
+                balance.reserved_balance = reserved_balance + required_balance;   
             }
         }
         Ok(())
@@ -664,10 +663,10 @@ impl STbalanceManager{
             }
 
             // send udates to the writter for the maker and the taker indexes 
-            let _ = self.balance_updates_sender.try_push(maker_balance_update);
-            let _ = self.balance_updates_sender.try_push(taker_balance_update);
-            let _ = self.holding_update_sender.try_push(maker_holdings_update);
-            let _ = self.holding_update_sender.try_push(taker_holdings_update);
+            let _ = self.balance_updates_sender.push(maker_balance_update);
+            let _ = self.balance_updates_sender.push(taker_balance_update);
+            let _ = self.holding_update_sender.push(maker_holdings_update);
+            let _ = self.holding_update_sender.push(taker_holdings_update);
             
         }
         

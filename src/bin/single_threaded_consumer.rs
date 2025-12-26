@@ -50,11 +50,9 @@ impl TradingCore {
                     Ok(_) => {
                         // Process order in engine
                         let engine_res = self.engine.process_order(order) ; 
-                        
                         match engine_res.0 {
                             Some(match_result) => {
                                 // Update balances from fills
-                                
                                 if let Err(e) = self.balance_manager
                                     .update_balances_after_trade(match_result.fills)
 
@@ -116,7 +114,7 @@ impl TradingCore {
                                     user_id: order_to_be_canceled.user_id, 
                                     order_id: order_to_be_canceled.order_id, 
                                     symbol: order_to_be_canceled.symbol, 
-                                    event_kind: 4, 
+                                    event_kind: 4, // cancel order 
                                     filled_qty: 0, 
                                     remaining_qty: 0, 
                                     original_qty: 0, 
@@ -211,7 +209,6 @@ fn main() {
             event_consumer_publisher,
             order_event_producer_publisher
         );
-
         my_publisher.start_publisher();
     });
 
@@ -235,11 +232,12 @@ fn main() {
         }
     });
     
+
     eprintln!("[Main] Initialization complete, starting trading loop");
     trading_system.run();
-
     publisher_handle.join().expect("publisher pankicked");
     writter_handle.join().expect("writter panicked");
+
     println!("System shutdown");
 }
 
