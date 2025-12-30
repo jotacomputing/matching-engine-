@@ -10,11 +10,12 @@
 #[repr(C)]
 #[derive( Debug, Clone, Copy )]
 pub struct OrderLogWrapper{
-    pub order_delta            : OrderDelta,
     pub timestamp              : i64 , 
+    pub order_delta            : OrderDelta,
     pub severity               : u8 , 
     pub source                 : u8 , 
-} // 52 bytes  
+  
+} 
 
 
 #[repr(C)]
@@ -29,13 +30,14 @@ pub struct BalanceLogWrapper{
 
 #[repr(C)]
 #[derive( Debug, Clone, Copy )]
-pub struct HoldingsLogs{
-    pub holding_delta           : HoldingDelta,
+pub struct HoldingLogWrapper{
     pub timestamp               : i64 ,
+    pub holding_delta           : HoldingDelta,
     pub severity                : u8 , 
     pub source                  : u8 , 
+   
 }
-// 55 bytes 
+
 
 #[derive( Debug, Clone , serde::Serialize)]
 pub struct OrderBookSnapShot{
@@ -50,26 +52,26 @@ pub struct OrderBookSnapShot{
 
 
 
-
 #[derive( Debug, Clone, Copy)]
 pub struct BalanceDelta{
     pub event_id: u64,
     pub user_id: u64,
     pub delta_available: i64,
     pub delta_reserved: i64,
-    pub reason: u8,      // reso for the balance update , either balances locked = 0 , or funds updated =1
     pub order_id: u64,     // the taker order id which caused the balance updations 
+    pub reason: u8,      // reso for the balance update , either balances locked = 0 , or funds updated =1
+   
 }
 
 #[derive(Debug ,Copy, Clone)]
 pub struct HoldingDelta {
+    pub order_id: u64,
     pub event_id: u64,
     pub user_id: u64,
     pub symbol: u32,
     pub delta_available: i32,
     pub delta_reserved: i32,
     pub reason: u8,
-    pub order_id: u64,
 }
 
 

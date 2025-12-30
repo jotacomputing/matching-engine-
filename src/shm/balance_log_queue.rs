@@ -6,7 +6,7 @@ use std::fs::{self, OpenOptions };
 use std::path::Path;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::os::unix::fs::OpenOptionsExt;
-use crate::logger::types::BalanceLogs;
+use crate::logger::types::BalanceLogWrapper;
 
 
 // QueueHeader with cache-line padding matching Go
@@ -22,12 +22,12 @@ pub struct QueueHeader {
 const QUEUE_MAGIC: u32 = 0xDEE;
 // reduce size 
 const QUEUE_CAPACITY: usize = 65536;
-const LOG_SIZE: usize = std::mem::size_of::<BalanceLogs>();
+const LOG_SIZE: usize = std::mem::size_of::<BalanceLogWrapper>();
 const HEADER_SIZE: usize = std::mem::size_of::<QueueHeader>();
 const TOTAL_SIZE: usize = HEADER_SIZE + (QUEUE_CAPACITY * LOG_SIZE);
 
 // Compile-time layout assertions (fail build if wrong)
-const _: () = assert!(LOG_SIZE == 72, "Order must be 72 bytes");
+const _: () = assert!(LOG_SIZE == 64, "Order must be 64 bytes");
 const _: () = assert!(HEADER_SIZE == 136, "QueueHeader must be 136 bytes");
 const _: () = {
     // Verify ConsumerTail is at offset 64
@@ -41,7 +41,7 @@ const _: () = {
 pub struct BalanceLogQueue {
     mmap: MmapMut,
     header_ptr: *mut QueueHeader,           // Cached pointer
-    log_ptr: *mut BalanceLogs,       // Cached logs pointer
+    log_ptr: *mut BalanceLogWrapper,       // Cached logs pointer
 }
 
 impl BalanceLogQueue {
@@ -90,7 +90,7 @@ impl BalanceLogQueue {
             .map_err(|e| QueueError::Flush(e.to_string()))?;
     
         let log_ptr = unsafe {
-            mmap.as_mut_ptr().add(HEADER_SIZE) as *mut BalanceLogs
+            mmap.as_mut_ptr().add(HEADER_SIZE) as *mut BalanceLogWrapper
         };
     
         Ok(BalanceLogQueue {
@@ -126,7 +126,7 @@ impl BalanceLogQueue {
 
         // Cache both pointers
         let header_ptr = { mmap.as_mut_ptr() as *mut QueueHeader };
-        let log_ptr = unsafe { mmap.as_mut_ptr().add(HEADER_SIZE) as *mut BalanceLogs };
+        let log_ptr = unsafe { mmap.as_mut_ptr().add(HEADER_SIZE) as *mut BalanceLogWrapper };
 
         // Validate
         let header = unsafe { &*header_ptr };
@@ -164,13 +164,13 @@ impl BalanceLogQueue {
 
     /// Get order at position - ZERO COST pointer arithmetic
     #[inline(always)]
-    fn get_log_response(&self, pos: usize) -> BalanceLogs {
+    fn get_log_response(&self, pos: usize) -> BalanceLogWrapper {
         unsafe { *self.log_ptr.add(pos) }
     }
 
     /// Set order at position - ZERO COST pointer arithmetic
     #[inline(always)]
-    fn set_log_response(&self, pos: usize, response: BalanceLogs) {
+    fn set_log_response(&self, pos: usize, response: BalanceLogWrapper) {
         unsafe {
             *self.log_ptr.add(pos) = response;
         }
@@ -178,7 +178,7 @@ impl BalanceLogQueue {
 
     /// ULTRA-FAST dequeue - all pointers cached, no borrows
     #[inline]
-    pub fn dequeue(&mut self) -> Result<Option<BalanceLogs>, QueueError> {
+    pub fn dequeue(&mut self) -> Result<Option<BalanceLogWrapper>, QueueError> {
         let header = self.header_mut();
 
         let producer_head = header.producer_head.load(Ordering::Acquire);
@@ -199,7 +199,7 @@ impl BalanceLogQueue {
         Ok(Some(log))
     }
 
-    pub fn enqueue(&mut self, log: BalanceLogs) -> Result<(), QueueError> {
+    pub fn enqueue(&mut self, log: BalanceLogWrapper) -> Result<(), QueueError> {
         let header = self.header_mut();
 
         let consumer_tail = header.consumer_tail.load(Ordering::Acquire);
@@ -238,7 +238,7 @@ impl BalanceLogQueue {
             .map_err(|e| QueueError::Flush(e.to_string()))
     }
 
-    pub fn dequeue_spin(&mut self, max_spins: usize) -> Result<Option<BalanceLogs>, QueueError> {
+    pub fn dequeue_spin(&mut self, max_spins: usize) -> Result<Option<BalanceLogWrapper>, QueueError> {
         for _ in 0..max_spins {
             match self.dequeue()? {
                 Some(order) => return Ok(Some(order)),
