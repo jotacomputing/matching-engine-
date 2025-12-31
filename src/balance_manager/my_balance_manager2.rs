@@ -22,6 +22,8 @@ use crate::shm::balance_response_queue::{ BalanceResQueue, BalanceResponse};
 const MAX_USERS: usize = 1000; 
 const MAX_SYMBOLS : usize = 100 ; 
 const DEFAULT_BALANCE : u64 = 10000;
+const DEFAULT_HOLDING_QTY: u32 = 100;
+
 #[repr(C)]
 #[repr(align(64))]  
 #[derive(Debug , Clone, Copy)]
@@ -83,10 +85,8 @@ impl UserHoldings{
     pub fn new(user_id : u64)->Self{
         Self { 
             user_id, 
-            available_holdings: unsafe { std::mem::zeroed() },
-            reserved_holdings:  unsafe {
-                std::mem::zeroed()
-            }
+            available_holdings: [DEFAULT_HOLDING_QTY ; MAX_SYMBOLS],
+            reserved_holdings: [0u32 ; MAX_SYMBOLS]
         }
     }
 }

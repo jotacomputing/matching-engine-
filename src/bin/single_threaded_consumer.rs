@@ -231,6 +231,7 @@ impl TradingCore {
                     match query.query_type{
                         2 => {
                             let _= self.balance_manager.add_user(query.user_id);
+                            
                         }
                         _=>{
 
