@@ -72,10 +72,8 @@ impl Default for UserHoldings{
     fn default() -> Self {
         UserHoldings {
             user_id: 0,
-            available_holdings: unsafe { std::mem::zeroed() },  // Faster than from_fn
-            reserved_holdings : unsafe {
-                std::mem::zeroed()
-            }
+            available_holdings: [DEFAULT_HOLDING_QTY ; MAX_SYMBOLS],  // Faster than from_fn
+            reserved_holdings : [0u32 ; MAX_SYMBOLS]
         }
     }
 
