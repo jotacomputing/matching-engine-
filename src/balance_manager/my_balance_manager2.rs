@@ -11,13 +11,13 @@
 // avalable means free balance or holdings that can be reserved 
 use bounded_spsc_queue::{Consumer, Producer};
 use crossbeam_utils::Backoff;
-use crate::logger::types::{BalanceDelta, HoldingDelta};
+use crate::logger::types::{BalanceDelta, BaseLogs, HoldingDelta};
 use crate::shm::holdings_response_queue::{HoldingResQueue, HoldingResponse};
 use dashmap::DashMap;
 use crate::orderbook::types::{BalanceManagerError, Fills, };
 use crate::orderbook::order::{ Order, OrderToBeCanceled, Side};
 use crate::shm::event_queue::OrderEvents;
-use crate::shm::query_queue::{ self, QueryQueue};
+use crate::shm::query_queue::{QueryQueue};
 use crate::shm::balance_response_queue::{ BalanceResQueue, BalanceResponse};
 const MAX_USERS: usize = 1000; 
 const MAX_SYMBOLS : usize = 100 ; 
@@ -141,7 +141,7 @@ impl MyBalanceManager2{
         let query_queue = QueryQueue::open("/tmp/Queries");
         
         if query_queue.is_err(){
-            eprintln!("query quque init error in balance manager");
+            eprintln!("query queue init error in balance manager");
             eprintln!("{:?}" , query_queue)
         }
         let balance_state = BalanceState::new();
@@ -584,17 +584,14 @@ impl STbalanceManager{
         }
         
     }
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
     #[inline(always)]
-    pub fn update_balances_after_trade(&mut self, order_fills: Fills) -> Result<(), BalanceManagerError> {
+    pub fn update_balances_after_trade<F , G>(&mut self, order_fills: Fills , mut emit : F , mut next_id : G)-> Result<(), BalanceManagerError>  where F : FnMut(BaseLogs) , G : FnMut()->u64 {
         println!("updating the post trade funds for each fill , sending updates for go cache");
         for fill in order_fills.fills {
             
             let maker_index = self.get_user_index(fill.maker_user_id)?;
             let taker_index = self.get_user_index(fill.taker_user_id)?;
             let fill_value = fill.price * fill.quantity as u64;
-            
-
 
             let (taker_balance_update ,  
                 taker_holding_update  , 
@@ -617,6 +614,19 @@ impl STbalanceManager{
                             delta_reserved_balance : 0 
                         };
 
+                        // logging 
+                        emit(BaseLogs::BalanceDelta(BalanceDelta { 
+                            event_id: next_id(), 
+                            user_id: fill.taker_user_id, 
+                            delta_available: self.get_i64(fill_value).unwrap(), 
+                            delta_reserved: 0, 
+                            order_id: fill.taker_order_id, 
+                            reason: 1 
+                        }));
+
+
+
+
                         // remove holdings from resevred
                        
                         let  taker_holdings = self.get_user_holdings(taker_index);
@@ -630,6 +640,18 @@ impl STbalanceManager{
                             delta_available_holding : 0 , 
                             delta_reserved_holding : -self.get_i32(fill.quantity).unwrap()
                         };
+
+                        emit(BaseLogs::HoldingDelta(HoldingDelta { 
+                            order_id: fill.taker_order_id, 
+                            event_id: next_id(), 
+                            user_id: fill.taker_user_id, 
+                            symbol: fill.symbol, 
+                            delta_available: 0, 
+                            delta_reserved: -self.get_i32(fill.quantity).unwrap(), 
+                            reason: 1 
+                        }));
+
+
                     
                         
                         let  maker_balance = self.get_user_balance(maker_index);
@@ -642,6 +664,15 @@ impl STbalanceManager{
                             delta_available_balance : 0 , 
                             delta_reserved_balance : -self.get_i64(fill_value).unwrap()
                         };
+                        emit(BaseLogs::BalanceDelta(BalanceDelta { 
+                            event_id: next_id(), 
+                            user_id: fill.maker_user_id, 
+                            delta_available: 0, 
+                            delta_reserved: -self.get_i64(fill_value).unwrap(), 
+                            order_id: fill.maker_order_id, 
+                            reason: 1 
+                        }));
+
                     
 
                         // add shares , he bough 
@@ -656,6 +687,16 @@ impl STbalanceManager{
                             delta_available_holding : self.get_i32(fill.quantity).unwrap(),
                             delta_reserved_holding : 0 
                         };
+
+                        emit(BaseLogs::HoldingDelta(HoldingDelta { 
+                            order_id: fill.maker_order_id, 
+                            event_id: next_id(), 
+                            user_id: fill.maker_user_id, 
+                            symbol: fill.symbol, 
+                            delta_available: self.get_i32(fill.quantity).unwrap(), 
+                            delta_reserved: 0, 
+                            reason: 1 
+                        }));
                     
                     (taker_balance_update , taker_holding_update , maker_balance_update , maker_holding_update)
                          
@@ -673,6 +714,17 @@ impl STbalanceManager{
                         delta_available_balance : 0 ,
                         delta_reserved_balance : -self.get_i64(fill_value).unwrap()
                        };
+                       emit(BaseLogs::BalanceDelta(BalanceDelta { 
+                        event_id: next_id(), 
+                        user_id: fill.taker_user_id, 
+                        delta_available: 0, 
+                        delta_reserved: -self.get_i64(fill_value).unwrap(), 
+                        order_id: fill.taker_order_id, 
+                        reason: 1 
+                    }));
+
+
+
 
                        
                        let  taker_holdings = self.get_user_holdings(taker_index);
@@ -685,6 +737,19 @@ impl STbalanceManager{
                             delta_available_holding : self.get_i32(fill.quantity).unwrap(),
                             delta_reserved_holding : 0
                        };
+                       emit(BaseLogs::HoldingDelta(HoldingDelta { 
+                        order_id: fill.taker_order_id, 
+                        event_id: next_id(), 
+                        user_id: fill.taker_user_id, 
+                        symbol: fill.symbol, 
+                        delta_available: self.get_i32(fill.quantity).unwrap(), 
+                        delta_reserved: 0, 
+                        reason: 1 
+                    }));
+
+
+
+
                        
                     
                        let  maker_balance = self.get_user_balance(maker_index);
@@ -696,6 +761,15 @@ impl STbalanceManager{
                         delta_available_balance : self.get_i64(fill_value).unwrap(),
                         delta_reserved_balance : 0 
                       };
+
+                      emit(BaseLogs::BalanceDelta(BalanceDelta { 
+                        event_id: next_id(), 
+                        user_id: fill.maker_user_id, 
+                        delta_available: self.get_i64(fill_value).unwrap(), 
+                        delta_reserved: 0, 
+                        order_id: fill.maker_order_id, 
+                        reason: 1 
+                    }));
                     
             
                     
@@ -710,6 +784,15 @@ impl STbalanceManager{
                         delta_available_holding : 0 , 
                         delta_reserved_holding : -self.get_i32(fill.quantity).unwrap()
                        };
+                       emit(BaseLogs::HoldingDelta(HoldingDelta { 
+                        order_id: fill.maker_order_id, 
+                        event_id: next_id(), 
+                        user_id: fill.maker_user_id, 
+                        symbol: fill.symbol, 
+                        delta_available: 0, 
+                        delta_reserved: -self.get_i32(fill.quantity).unwrap(), 
+                        reason: 1 
+                    }));
                        
                        (taker_balance_update , taker_holding_update , maker_balance_update , maker_holding_update)
                         

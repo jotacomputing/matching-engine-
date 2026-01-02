@@ -131,7 +131,14 @@ impl TradingCore {
                                 }));
                                 // Update balances from fills
                                 if let Err(e) = self.balance_manager
-                                    .update_balances_after_trade(match_result.fills)
+                                    .update_balances_after_trade(match_result.fills ,
+                                         |log|{
+                                            let _ = self.log_sender_to_logger.try_push(log);
+                                         } , 
+                                            ||->u64{
+                                                next_event_id()
+                                            }
+                                        )
                                 // to do add logging here also when balance changes for consistanc 
                                 {
                                     
