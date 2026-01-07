@@ -9,6 +9,8 @@ use crate::shm::cancel_orders_queue::{ CancelOrderQueue};
 use crate::shm::event_queue::OrderEvents;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+// 100 max symbols for now 
+
 
 pub trait Engine{
     fn add_book(&mut self , symbol : u32);
@@ -180,7 +182,7 @@ pub const DEPTH_N: usize = 20;
 pub struct STEngine{
     pub engine_id :usize ,
     pub book_count : usize, 
-    pub books : HashMap<u32 , OrderBook>,
+    pub books : Vec<Option<OrderBook>>,
     pub cancel_order_queue : CancelOrderQueue,
     pub sending_event_to_publisher_try : Producer<Event>,
     pub sending_order_events_to_writter_try : Producer<OrderEvents>,
@@ -195,7 +197,7 @@ impl STEngine{
             Self{
                 engine_id,
                 book_count : 0 ,
-                books : HashMap::new(),
+                books : Vec::with_capacity(100),
                 cancel_order_queue : cancel_order_queue.unwrap(),
                 sending_event_to_publisher_try : event_sender_to_publisher,
                 sending_order_events_to_writter_try
@@ -242,21 +244,25 @@ impl STEngine{
 
     pub fn snapshot_for_all_book<F , G>(&mut self , mut emit : F  , mut next_event_id : G )where F : FnMut(OrderBookSnapShot) , G : FnMut()->u64{
        // println!("inside the snapthost function");
-        for (_, orderbook) in self.books.iter(){
-           // println!("{:?}" , symbol);
-            let (bids , asks) = orderbook.get_depth_upto_n::<DEPTH_N>();
-           // println!("{:?}" , bids);
-           // println!("{:?}" , asks);
-            emit(OrderBookSnapShot { 
-                timestamp : SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as i64 , 
-                event_id: next_event_id(), 
-                symbol: orderbook.symbol, 
-                bids ,
-                asks
-            });
+        
+        for orderbook in self.books.iter(){
+            match orderbook {
+                Some(book)=>{
+                    let (bids , asks) = book.get_depth_upto_n::<DEPTH_N>();
+                    emit(OrderBookSnapShot { 
+                        timestamp : SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_nanos() as i64 , 
+                        event_id: next_event_id(), 
+                        symbol: book.symbol, 
+                        bids ,
+                        asks
+                    });
+                }
+                None => {}
+            }
+          
         }
     }
 }
@@ -266,29 +272,27 @@ impl STEngine{
 impl Engine for STEngine{
     fn add_book(&mut self , symbol : u32) {
         let new_book = OrderBook::new(symbol);
-        self.books.insert(symbol, new_book);
+        self.books[symbol as usize] = Some( new_book);
         self.book_count = self.book_count.saturating_add(1);
     }
     fn get_book(&self , symbol : u32)->Option<&OrderBook> {
-       self.books.get(&symbol).map(|orderbook| orderbook)
+        self.books[symbol as usize].as_ref()
     }
     fn get_book_mut(&mut self, symbol: u32) -> Option<&mut OrderBook> {
-        self.books.get_mut(&symbol)
+        self.books[symbol as usize].as_mut()
     }
     fn get_book_count(&self)->usize {
         self.book_count
     }
     fn has_book(&self, symbol: u32) -> bool {
-        self.books.contains_key(&symbol)
+       self.books[symbol as usize].is_some()
     }
 
     // cleaning up logic reqd 
     fn remove_book(&mut self , symbol : u32) {
-        if self.books.contains_key(&symbol){
-            self.books.remove(&symbol);
+        if self.has_book(symbol){
+            self.books[symbol as usize] = None;
             self.book_count = self.book_count.saturating_sub(1);
         }
     }
-    
-
 }
