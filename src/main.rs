@@ -133,6 +133,6 @@ fn main(){
     shm_reader_handle.join().expect("SHM reader panicked");
     writter_handle.join().expect("Shm writter panicked");
     println!("System shutdown");
-    
 
+    
 }

@@ -10,7 +10,7 @@ use rust_orderbook_2::shm::queue::IncomingOrderQueue;
 
 // === Config ===
 // Default target rate if env var not set.
-const DEFAULT_MAX_RATE_PER_SEC: u64 = 100000;
+const DEFAULT_MAX_RATE_PER_SEC: u64 = 100000; 
 
 fn main() {
     // ==== Read max rate from env or use default ====

@@ -463,9 +463,6 @@ pub struct BalanceManagerResUpdateDeltaHolding{
 
 pub struct STbalanceManager{
     state : BalanceState,
-
-
-    pub query_queue : QueryQueue,
     pub events_to_wrriter_try : Producer<OrderEvents> , 
 
     pub balance_updates_sender : Producer<BalanceResponse>,
@@ -478,13 +475,8 @@ impl STbalanceManager{
         balance_updates_sender : Producer<BalanceResponse>,
         holding_update_sender : Producer<HoldingResponse>
     )->Self{
-        let query_queue = QueryQueue::open("/tmp/Queries");
         let holding_response_queue = HoldingResQueue::open("/tmp/HoldingsResponse");
         let balance_response_queue = BalanceResQueue::open("/tmp/BalanceResponse");
-        if query_queue.is_err(){
-            eprintln!("query quque init error in balance manager");
-            eprintln!("{:?}" , query_queue)
-        }
         if balance_response_queue.is_err(){
             eprintln!("response queue init error in balance manager");
             eprintln!("{:?}" , balance_response_queue)
@@ -495,8 +487,7 @@ impl STbalanceManager{
         }
         let balance_state = BalanceState::new();
         Self {  
-            state: balance_state , 
-            query_queue : query_queue.unwrap() , 
+            state: balance_state ,  
             events_to_wrriter_try,
             balance_updates_sender,
             holding_update_sender

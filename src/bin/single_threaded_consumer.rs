@@ -30,6 +30,7 @@ pub struct TradingCore {
     pub balance_manager: STbalanceManager,
     pub shm_reader: StShmReader,
     pub engine: STEngine,
+    pub query_queue : QueryQueue,
     processed_count: u64,
     order_batch : Vec<Order> , 
     pub log_sender_to_logger : Producer<BaseLogs>,
@@ -46,7 +47,13 @@ impl TradingCore {
         log_sender_to_logger : Producer<BaseLogs>,
         snapshot_sender_to_logger : Producer<OrderBookSnapShot>
     ) -> Self {
+        let query_queue = QueryQueue::open("/tmp/Queries");
+        if query_queue.is_err(){
+            eprintln!("query queue init error in balance manager");
+            eprintln!("{:?}" , query_queue)
+        }
         Self {
+            query_queue : query_queue.unwrap(),
             balance_manager: STbalanceManager::new(event_sender_to_writter , balance_event_producer_bm , holding_event_producer_bm),
             shm_reader: StShmReader::new().unwrap(),
             engine: STEngine::new(0 , event_sender_to_publisher_by_engine , order_event_producer_engine),
@@ -244,7 +251,7 @@ impl TradingCore {
 
                 }
             }
-            match self.balance_manager.query_queue.dequeue(){
+            match self.query_queue.dequeue(){
                 Ok(Some(query))=>{
                     // we wud only get the add user query from here , qid , user_id , query_Type 2 
                     match query.query_type{
