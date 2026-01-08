@@ -13,12 +13,18 @@ pub struct QueueHeader {
     magic: AtomicU32,         // offset 128
     capacity: AtomicU32,      // offset 132
 }
+
+// different queries add symbol , change holdings , change balance 
 #[repr(C)]
 #[derive(Debug , Clone, Copy)]
 pub struct Query{
-    pub query_id : u64 ,
+    pub available_balance : u64 ,
+    pub reserved_balance : u64 ,
     pub user_id : u64 , 
-    pub query_type : u8 ,   // 0 -> get balance , 1 -> get holdings , 2 -> add user on login 
+    pub symbol : u32 , 
+    pub reserved_shares_qty: u32,
+    pub available_shares_qty : u32,
+    pub query_type : u8 ,   // 0 -> change available balance , 1 -> change availableholdings , 2 -> add user on login 3-> add orderbok
 }
 const QUEUE_MAGIC: u32 = 0x51554552;
 // reduce size 
@@ -28,7 +34,7 @@ const HEADER_SIZE: usize = std::mem::size_of::<QueueHeader>();
 const TOTAL_SIZE: usize = HEADER_SIZE + (QUEUE_CAPACITY * ORDER_SIZE);
 
 // Compile-time layout assertions (fail build if wrong)
-const _: () = assert!(ORDER_SIZE == 24, "Order must be 24 bytes");
+const _: () = assert!(ORDER_SIZE == 40, "Order must be 40 bytes");
 const _: () = assert!(HEADER_SIZE == 136, "QueueHeader must be 136 bytes");
 const _: () = {
     // Verify ConsumerTail is at offset 64

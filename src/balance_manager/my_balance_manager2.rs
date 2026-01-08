@@ -462,7 +462,7 @@ pub struct BalanceManagerResUpdateDeltaHolding{
 
 
 pub struct STbalanceManager{
-    state : BalanceState,
+    pub state : BalanceState,
     pub events_to_wrriter_try : Producer<OrderEvents> , 
 
     pub balance_updates_sender : Producer<BalanceResponse>,
@@ -512,6 +512,22 @@ impl STbalanceManager{
     pub fn get_i32(& self ,ip : u32)->Result<i32, std::num::TryFromIntError>{
         i32::try_from(ip)
     }
+
+    pub fn change_user_balance(&mut self , user_id : u64  , reserved_balance : u64 , available_balance : u64)->Result<() , BalanceManagerError>{
+        let user_index = self.get_user_index(user_id)?;
+        self.state.balances[user_index as usize].available_balance = available_balance;
+        self.state.balances[user_index as usize].reserved_balance = reserved_balance;
+        Ok(())
+    }
+
+    pub fn change_user_holdings(&mut self , user_id : u64 , symbol : u32 , reserved_shares_qty : u32 , available_qty : u32)->Result<() , BalanceManagerError>{
+        let user_index = self.get_user_index(user_id)?;
+        self.state.holdings[user_index as usize].available_holdings[symbol as usize] = available_qty;
+        self.state.holdings[user_index as usize].reserved_holdings[symbol as usize] = reserved_shares_qty;
+        Ok(())
+    }
+
+
     #[inline(always)]
     pub fn check_and_lock_funds(&mut self , order : Order)->Result<BalanceManagerResForLocking , BalanceManagerError>{
         // currently for limit orders , we get an order 

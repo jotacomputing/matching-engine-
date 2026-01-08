@@ -255,9 +255,21 @@ impl TradingCore {
                 Ok(Some(query))=>{
                     // we wud only get the add user query from here , qid , user_id , query_Type 2 
                     match query.query_type{
+                        0 =>{
+                            let _ = self.balance_manager.change_user_balance(query.user_id, query.reserved_balance , query.available_balance);
+                        }
+                        1 =>{
+                            // channgel usr hldigs 
+                            let _ = self.balance_manager.change_user_holdings(query.user_id, query.symbol, query.reserved_shares_qty , query.available_shares_qty);
+                        }
+
                         2 => {
                             let _= self.balance_manager.add_user(query.user_id);
 
+                        }
+                        3=>{
+                            // add order book 
+                            let _ = self.engine.add_book(query.symbol);
                         }
                         _=>{
 
