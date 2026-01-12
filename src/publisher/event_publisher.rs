@@ -1,24 +1,28 @@
 use bounded_spsc_queue::{Consumer, Producer};
 use std::time::{SystemTime, UNIX_EPOCH};
-use crate::{logger::types::TradeLogs, orderbook::{order::Side, types::{DepthData, Event, TickerData, TradeData}}, pubsub::pubsub_manager::RedisPubSubManager, shm::event_queue::OrderEvents};
+use crate::{logger::types::TradeLogs, orderbook::{order::Side, types::{DepthData, Event, TickerData, TradeData}}, pubsub::pubsub_manager::RedisPubSubManager, shm::{event_queue::OrderEvents, fill_queue_mm::MarketMakerFill}};
+
 pub struct EventPublisher { 
     pub mypubsub : RedisPubSubManager ,
     pub event_queue_from_engine_try : Consumer<Event>,
     pub event_queue_sender_to_writter_try : Producer<OrderEvents>,
-    pub trade_log_sender_to_logger : Producer<TradeLogs>
+    pub trade_log_sender_to_logger : Producer<TradeLogs>,
+    pub mm_fill_sender : Producer<MarketMakerFill> ,
 }
 impl EventPublisher {
     pub fn new( 
         mypubsub : RedisPubSubManager  ,
         event_queue_from_engine_try : Consumer<Event>,
         event_queue_sender_to_writter_try : Producer<OrderEvents> ,
-        trade_log_sender_to_logger : Producer<TradeLogs>
+        trade_log_sender_to_logger : Producer<TradeLogs>,
+        mm_fill_sender : Producer<MarketMakerFill> ,
     ) -> Self {
         Self {  
             mypubsub , 
             event_queue_from_engine_try , 
             event_queue_sender_to_writter_try , 
-            trade_log_sender_to_logger
+            trade_log_sender_to_logger , 
+            mm_fill_sender
         }
     }
     pub fn start_publisher(&mut self) {
@@ -62,8 +66,19 @@ impl EventPublisher {
                         
                     }
                     {
-                        // check if we even need to return fills to the user and then avod clone here 
+
                         for fill in rec_event.market_update.match_result.fills.fills{
+                            if fill.maker_user_id == 1 || fill.taker_user_id == 1{
+                                // this is the user ID of the market maker 
+                                self.mm_fill_sender.push(MarketMakerFill { 
+                                    timestamp : SystemTime::now()
+                                    .duration_since(UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_nanos() as u64,
+                                    fill_price: fill.price, 
+                                    fill_quantity: fill.quantity 
+                                });
+                            }
                             let trade_stream = format!("trade.{}" , rec_event.market_update.symbol);
                             let trade_message = TradeData::new(
                                 String::from("trade"),  

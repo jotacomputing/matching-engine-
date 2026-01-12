@@ -24,6 +24,9 @@ const MAX_SYMBOLS : usize = 100 ;
 const DEFAULT_BALANCE : u64 = 10000;
 const DEFAULT_HOLDING_QTY: u32 = 100;
 
+const MARKET_MAKER_BALANCE : u64 = 100000000;
+
+
 #[repr(C)]
 #[repr(align(64))]
 #[derive(Debug , Clone, Copy)]
@@ -57,6 +60,16 @@ impl UserBalance{
              order_count_today: 0, 
              _pad: [0;24]
              }
+    }
+    pub fn market_maker(user_id : u64)->Self{
+        Self {
+            user_id , 
+            available_balance: MARKET_MAKER_BALANCE, 
+            reserved_balance: 0, 
+            total_traded_today: 0, 
+            order_count_today: 0, 
+            _pad: [0;24]
+            }
     }
 }
 
@@ -901,7 +914,24 @@ impl STbalanceManager{
         
         self.state.user_id_to_index.insert(user_id, idx);
         Ok(idx)
+    }
 
+    pub fn add_market_maker(&mut self)->Result<u32 , BalanceManagerError>{
+        if self.state.user_id_to_index.contains_key(&0){
+            return Err(BalanceManagerError::UserAlreadyExists);
+        }
+        if self.state.next_free_slot as usize >= MAX_USERS {
+            return Err(BalanceManagerError::MaxUsersReached);
+        }
+        let idx = self.state.next_free_slot;
+        self.state.next_free_slot += 1;
+        self.state.total_users += 1;
+
+        self.state.balances[idx as usize] = UserBalance::market_maker(0);
+        self.state.holdings[idx as usize] = UserHoldings::new(0);
+        
+        self.state.user_id_to_index.insert(0, idx);
+        Ok(idx)
     }
 
 }

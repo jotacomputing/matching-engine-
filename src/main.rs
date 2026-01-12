@@ -8,6 +8,7 @@ use rust_orderbook_2::engine::my_engine::{ Engine, MyEngine};
 use rust_orderbook_2::publisher::event_publisher::EventPublisher;
 use core_affinity;
 use rust_orderbook_2::pubsub::pubsub_manager::RedisPubSubManager;
+use rust_orderbook_2::shm::fill_queue_mm::MarketMakerFill;
 use rust_orderbook_2::shm::holdings_response_queue::{HoldingResQueue, HoldingResponse};
 use rust_orderbook_2::shm::queue::IncomingOrderQueue;
 use rust_orderbook_2::shm::cancel_orders_queue::CancelOrderQueue;
@@ -40,6 +41,7 @@ fn main(){
     let (balance_event_producer_bm , balance_event_consumer_writter) = bounded_spsc_queue::make::<BalanceResponse>(32768);
     let (holding_event_producer_bm , holding_event_consumer_writter) = bounded_spsc_queue::make::<HoldingResponse>(32768);
     let (trade_log_producer_publisher , _)= bounded_spsc_queue::make::<TradeLogs>(32768);
+    let (mm_fill_sender , mm_fill_reciever)= bounded_spsc_queue::make::<MarketMakerFill>(32768);
 
     let shm_reader_handle = std::thread::spawn(move || {
         core_affinity::set_for_current(core_affinity::CoreId { id: 2 });
@@ -102,7 +104,7 @@ fn main(){
             pubsub_connection.unwrap() , 
             
             event_consumer_publisher,
-            order_event_producer_publisher , trade_log_producer_publisher
+            order_event_producer_publisher , trade_log_producer_publisher,mm_fill_sender
         );
 
         my_publisher.start_publisher();
@@ -115,7 +117,8 @@ fn main(){
             order_event_consumer_writter_from_publisher,
             order_event_consumer_writter_from_engine,
             balance_event_consumer_writter,
-            holding_event_consumer_writter
+            holding_event_consumer_writter,
+            mm_fill_reciever
         );
         if shm_writter.is_some(){
             shm_writter.unwrap().start_shm_writter();
