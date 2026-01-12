@@ -11,3 +11,4 @@ pub mod balance_log_queue;
 pub mod holdings_log_queue;
 pub mod trade_log_queue;
 pub mod snapshot_queue;
+pub mod fill_queue_mm;
