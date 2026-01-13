@@ -36,6 +36,7 @@ pub struct TradingCore {
     pub log_sender_to_logger : Producer<BaseLogs>,
     pub snapshot_sender_to_logger : Producer<OrderBookSnapShot> ,
     pub last_snap_shot : Instant,
+    pub market_maker_feed_sender : Producer<MarketMakerFeed>
 }
 impl TradingCore {
     pub fn new(
@@ -46,7 +47,7 @@ impl TradingCore {
         holding_event_producer_bm : Producer<HoldingResponse>,
         log_sender_to_logger : Producer<BaseLogs>,
         snapshot_sender_to_logger : Producer<OrderBookSnapShot>,
-        market_maker_feed_event_sender : Producer<MarketMakerFeed>
+        market_maker_feed_sender : Producer<MarketMakerFeed>
     ) -> Self {
         let query_queue = QueryQueue::open("/tmp/Queries");
         if query_queue.is_err(){
@@ -54,10 +55,11 @@ impl TradingCore {
             eprintln!("{:?}" , query_queue)
         }
         Self {
+            market_maker_feed_sender,
             query_queue : query_queue.unwrap(),
             balance_manager: STbalanceManager::new(event_sender_to_writter , balance_event_producer_bm , holding_event_producer_bm),
             shm_reader: StShmReader::new().unwrap(),
-            engine: STEngine::new(0 , event_sender_to_publisher_by_engine , order_event_producer_engine , market_maker_feed_event_sender ),
+            engine: STEngine::new(0 , event_sender_to_publisher_by_engine , order_event_producer_engine  ),
             processed_count: 0,
             order_batch : Vec::with_capacity(1000),
             log_sender_to_logger , 
@@ -128,7 +130,9 @@ impl TradingCore {
                             
                         }
                         // Process order in engine
-                        let engine_res = self.engine.process_order(order) ; 
+                        let engine_res = self.engine.process_order(order, |feed|{
+                            let _ = self.market_maker_feed_sender.try_push(feed);
+                        }) ; 
                         match engine_res.0 {
                             Some(match_result) => {
                                 // log that order has been matched 
@@ -225,7 +229,9 @@ impl TradingCore {
                         let order_detials = order_book.manager.get(order_index).unwrap();
                         match self.balance_manager.update_balance_after_order_cancel(order_to_be_canceled, order_detials.side, order_detials.shares_qty, order_detials.price) {
                             Ok(_)=>{
-                                order_book.cancel_order(order_to_be_canceled.order_id);
+                                order_book.cancel_order(order_to_be_canceled.order_id , |feed|{
+                                    let _ = self.market_maker_feed_sender.try_push(feed);
+                                });
                                 // order can be aprtialyl filled also when cancl order comes 
                                 // need to chnage the order struct to include '
                                 self.engine.sending_order_events_to_writter_try.try_push(OrderEvents { 

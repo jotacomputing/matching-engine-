@@ -2,6 +2,7 @@ use crate::orderbook::book::BookSide;
 use crate::orderbook::order::{ Order, Side };
 use crate::orderbook::order_manager::OrderManager;
 use crate::orderbook::types::{Fill , Fills , MatchResult  , OrderBookError};
+use crate::shm::market_maker_feed::MarketMakerFeed;
 
 #[derive(Debug)]
 pub struct OrderBook{
@@ -31,7 +32,7 @@ impl OrderBook{
         }
     }
 
-    pub fn match_market_order(&mut self , order:&mut Order )->Result<MatchResult , OrderBookError>{
+    pub fn match_market_order<F>(&mut self , order:&mut Order , mut feedCallBack : F  )->Result<MatchResult , OrderBookError> where F : FnMut(MarketMakerFeed){
         let orignal_shares_qty = order.shares_qty;
         // wejust need to fill the shares 
         //if a very large maket order comes and there are not enough shares for it to eat , its canceled
@@ -120,7 +121,7 @@ impl OrderBook{
     }
 
     #[cfg_attr(feature = "hotpath", hotpath::measure)]
-    pub fn match_bid(&mut self , order: &mut Order)->Result<MatchResult , OrderBookError>{
+    pub fn match_bid<F>(&mut self , order: &mut Order , mut feedCallBack : F)->Result<MatchResult , OrderBookError> where F : FnMut(MarketMakerFeed){
         let mut bid_fills = Fills::new();
      
         let orignal_shares_qty = order.shares_qty;
@@ -227,7 +228,7 @@ impl OrderBook{
         })
     }
     #[cfg_attr(feature = "hotpath", hotpath::measure)]
-    pub fn match_ask(&mut self , order: &mut Order)->Result<MatchResult , OrderBookError>{
+    pub fn match_ask<F>(&mut self , order: &mut Order , mut feedCallBack : F)->Result<MatchResult , OrderBookError> where F : FnMut(MarketMakerFeed){
         //println!("inside the matching function , match ask");
         let orignal_shares_qty = order.shares_qty;
        // println!("recived the order , matching now");
@@ -413,7 +414,7 @@ impl OrderBook{
         (bids, asks)
     }
 
-    pub fn cancel_order(&mut self ,order_id : u64){
+    pub fn cancel_order<F>(&mut self ,order_id : u64 , mut feedCallBack : F)where F : FnMut(MarketMakerFeed){
        if let Some(&order_index) = self.manager.id_to_index.get(&order_id){
             // we got the orderIndex 
             let (side , price) = {

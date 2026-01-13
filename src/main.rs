@@ -4,7 +4,7 @@ use rust_orderbook_2::logger::types::TradeLogs;
 use rust_orderbook_2::orderbook::order::Order;
 use rust_orderbook_2::orderbook::types::Fills;
 use rust_orderbook_2::orderbook::{types::Event};
-use rust_orderbook_2::engine::my_engine::{ Engine, MyEngine};
+use rust_orderbook_2::engine::my_engine::{ Engine};
 use rust_orderbook_2::publisher::event_publisher::EventPublisher;
 use core_affinity;
 use rust_orderbook_2::pubsub::pubsub_manager::RedisPubSubManager;
@@ -77,20 +77,22 @@ fn main(){
     // ENGINE HANDLES 
     let mut running_engines: Vec<JoinHandle<()>> = Vec::new();
 
-    let first_join_handle = std::thread::spawn(move || {
-        core_affinity::set_for_current(core_affinity::CoreId { id: 1 });
-
-        let mut engine = MyEngine::new(
-            0,
-            order_consumer_engine,
-            fill_producer_engine,
-            event_producer_engine,
-            order_event_producer_engine
-        ).unwrap();
-        engine.add_book(0);
-        engine.run_engine();
-    });
-    running_engines.push(first_join_handle);
+    //let first_join_handle = std::thread::spawn(move || {
+    //    core_affinity::set_for_current(core_affinity::CoreId { id: 1 });
+//
+    //    let mut engine = MyEngine::new(
+    //        0,
+    //        order_consumer_engine,
+    //        fill_producer_engine,
+    //        event_producer_engine,
+    //        order_event_producer_engine
+    //    ).unwrap();
+    //    engine.add_book(0);
+    //    engine.run_engine(|feed|{
+    //        println!("demo");
+    //    });
+    //});
+    //running_engines.push(first_join_handle);
 
 
 
