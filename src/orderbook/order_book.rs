@@ -114,7 +114,21 @@ impl OrderBook{
         }
         
         // at this point i can again call the get best price and send an event bcs only the oppsite sides best chnages in case of a market order 
-
+        feedCallBack(
+            MarketMakerFeed { 
+                timestamp: 0, 
+                last_traded_price: self.last_trade_price, 
+                best_bid: match self.bidside.get_best_price() {
+                    Some(price)=>price,
+                    None => 0
+                }, 
+                best_ask:  match self.askside.get_best_price() {
+                    Some(price)=>price,
+                    None => 0
+                }, 
+                best_bid_qty: 0, 
+                best_ask_qty: 0 }
+        );
         Ok(MatchResult{
             order_id : order.order_id , user_id : order.user_id ,  fills : market_fills, remaining_qty:order.shares_qty , orignal_qty:orignal_shares_qty
         }) 
@@ -222,6 +236,21 @@ impl OrderBook{
 
         // before returning we can calculate the best prices here and then send an event 
         // here it is possible that both the askside and the bid side get updated 
+        feedCallBack(
+            MarketMakerFeed { 
+                timestamp: 0, 
+                last_traded_price: self.last_trade_price, 
+                best_bid: match self.bidside.get_best_price() {
+                    Some(price)=>price,
+                    None => 0
+                }, 
+                best_ask:  match self.askside.get_best_price() {
+                    Some(price)=>price,
+                    None => 0
+                }, 
+                best_bid_qty: 0, 
+                best_ask_qty: 0 }
+        );
 
         Ok(MatchResult{
             order_id : order.order_id ,user_id : order.user_id ,fills : bid_fills , remaining_qty : order.shares_qty , orignal_qty : orignal_shares_qty
@@ -327,6 +356,21 @@ impl OrderBook{
 
         // before returning we can calculate the best prices here and then send an event 
         // here it is possible that both the askside and the bid side get updated 
+        feedCallBack(
+            MarketMakerFeed { 
+                timestamp: 0, 
+                last_traded_price: self.last_trade_price, 
+                best_bid: match self.bidside.get_best_price() {
+                    Some(price)=>price,
+                    None => 0
+                }, 
+                best_ask:  match self.askside.get_best_price() {
+                    Some(price)=>price,
+                    None => 0
+                }, 
+                best_bid_qty: 0, 
+                best_ask_qty: 0 }
+        );
 
         Ok(MatchResult{
             order_id : order.order_id , user_id : order.user_id ,fills : ask_fills, remaining_qty : order.shares_qty , orignal_qty:orignal_shares_qty
@@ -431,6 +475,22 @@ impl OrderBook{
                 }
             }
        }
+
+       feedCallBack(
+        MarketMakerFeed { 
+            timestamp: 0, 
+            last_traded_price: self.last_trade_price, 
+            best_bid: match self.bidside.get_best_price() {
+                Some(price)=>price,
+                None => 0
+            }, 
+            best_ask:  match self.askside.get_best_price() {
+                Some(price)=>price,
+                None => 0
+            }, 
+            best_bid_qty: 0, 
+            best_ask_qty: 0 }
+    );
 
        // here also we can pass the event of the updated best bid and the best ask , only one will be chnaged here 
     }

@@ -221,9 +221,8 @@ impl STEngine{
                     eprint!("Invalid order struct");
                     Err(OrderBookError::InvalidOrder)
                 }
-            
             };
-            //println!("events after natching the order {:?}" , events);
+        
             if let Ok(match_result) = events {
                 let now_utc = Utc::now();
                 let order_book_symbol = order_book.symbol;
