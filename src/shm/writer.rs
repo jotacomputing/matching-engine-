@@ -1,6 +1,6 @@
 use bounded_spsc_queue::Consumer;
 
-use crate::{shm::{balance_response_queue::BalanceResponse, event_queue::{OrderEventQueue, OrderEvents}, fill_queue_mm::{MarketMakerFill, MarketMakerFillQueue}, holdings_response_queue::HoldingResponse}, singlepsinglecq::my_queue::SpscQueue};
+use crate::{shm::{balance_response_queue::BalanceResponse, event_queue::{OrderEventQueue, OrderEvents}, fill_queue_mm::{MarketMakerFill, MarketMakerFillQueue}, holdings_response_queue::HoldingResponse, market_maker_feed::{self, MarketMakerFeed, MarketMakerFeedQueue}}, singlepsinglecq::my_queue::SpscQueue};
 // writer for the order events becuase balance manager , and publisher can send diffeent events 
 // publisher more priority so that we get the order responses for post req 
 // insufficient funds would have low probobaility 
@@ -12,6 +12,7 @@ pub struct ShmWriter{
     pub balance_response_queue  : BalanceResQueue,
     pub holding_response_queue  : HoldingResQueue,
     pub market_maker_fill_queue : MarketMakerFillQueue,
+    pub market_maker_feed_queue : MarketMakerFeedQueue,
 
 
     pub rec_from_bm_try : Consumer<OrderEvents>,
@@ -20,6 +21,7 @@ pub struct ShmWriter{
     pub rec_balance_update : Consumer<BalanceResponse>,
     pub rec_holdings_updates : Consumer<HoldingResponse>,
     pub mm_fill_recive : Consumer<MarketMakerFill>,
+    pub mm_feed_recive : Consumer<MarketMakerFeed>
 }
 
 
@@ -30,12 +32,14 @@ impl ShmWriter{
         rec_balance_update : Consumer<BalanceResponse>,
         rec_holdings_updates : Consumer<HoldingResponse>,
         mm_fill_recive : Consumer<MarketMakerFill>,
+        mm_feed_recive : Consumer<MarketMakerFeed>
         
     )->Option<Self>{
         let order_event_queue = OrderEventQueue::open("/tmp/OrderEvents");
         let holding_response_queue = HoldingResQueue::open("/tmp/HoldingsResponse");
         let balance_response_queue = BalanceResQueue::open("/tmp/BalanceResponse");
         let market_maker_fill_queue = MarketMakerFillQueue::open("/tmp/MarketMakerFills");
+        let market_maker_feed_queue = MarketMakerFeedQueue::open("/tmp/MarketMakerFeed");
         if balance_response_queue.is_err(){
             eprintln!("response queue init error in balance manager");
             eprintln!("{:?}" , balance_response_queue)
@@ -50,6 +54,7 @@ impl ShmWriter{
         match order_event_queue {
             Ok(queue)=>{
                 Some(Self{
+                    mm_feed_recive,
                     order_event_queue : queue ,
                     rec_from_bm_try , 
                     rec_from_publisher_try , 
@@ -57,6 +62,7 @@ impl ShmWriter{
                     holding_response_queue : holding_response_queue.unwrap(),
                     balance_response_queue : balance_response_queue.unwrap(),
                     market_maker_fill_queue : market_maker_fill_queue.unwrap(),
+                    market_maker_feed_queue : market_maker_feed_queue.unwrap(),
                     rec_balance_update,
                     rec_holdings_updates,
                     mm_fill_recive
@@ -88,7 +94,10 @@ impl ShmWriter{
                 let _ = self.order_event_queue.enqueue(event);
                 did_work = true;
             }
-
+            if let Some(feed )= self.mm_feed_recive.try_pop(){
+                let _ = self.market_maker_feed_queue.enqueue(feed);
+                did_work = true;
+            }
             if let Some(fill) = self.mm_fill_recive.try_pop(){
                 let _ = self.market_maker_fill_queue.enqueue(fill);
                 did_work = true;

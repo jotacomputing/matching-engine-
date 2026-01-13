@@ -24,7 +24,6 @@ impl OrderBook{
         }
     }
 
-
     pub fn insert_order(&mut self , order : Order ){
         match order.side {
             Side::Ask => self.askside.insert(order ,&mut self.manager) ,
@@ -54,6 +53,7 @@ impl OrderBook{
                 let level = opposite_side.levels.get_mut(&best_price).unwrap();
                 // we got the price Level we start matchng 
                 while order.shares_qty > 0 && level.check_if_empty() == false{
+                    // dorectly remove the oldest order 
                     let  oldest_order_key = level.remove_oldest_order(&mut self.manager).unwrap();
                     let ( shares , order_id , user_id) = {
                         let oldest_order =  self.manager.get_mut(oldest_order_key).unwrap();
@@ -61,9 +61,6 @@ impl OrderBook{
                     };
 
                     if order.shares_qty >= shares{
-                        // then this order will be complete consumed 
-                        // TODO -> expose a function in the ordermanager that removes the order from the maps
-                        // we get a copy of shares , but we dont need to update the actual because we are deleting
                         let consumed = shares;
                         order.shares_qty = order.shares_qty.saturating_sub(shares);
                         market_fills.fills.push(Fill{
@@ -76,8 +73,8 @@ impl OrderBook{
                             symbol : self.symbol,
                             taker_side : order.side
                         });
+                        // was alr popped from the book , need to bre removed from the manager also 
                          self.manager.remove_order(order_id);
-                         
                     }
                     else {
                         // if shares is more then then the market order is finished and then oldest order will
@@ -115,6 +112,7 @@ impl OrderBook{
             self.last_trade_price = market_fills.fills.last().unwrap().price;
         }
         
+        // at this point i can again call the get best price and send an event bcs only the oppsite sides best chnages in case of a market order 
 
         Ok(MatchResult{
             order_id : order.order_id , user_id : order.user_id ,  fills : market_fills, remaining_qty:order.shares_qty , orignal_qty:orignal_shares_qty
@@ -124,11 +122,9 @@ impl OrderBook{
     #[cfg_attr(feature = "hotpath", hotpath::measure)]
     pub fn match_bid(&mut self , order: &mut Order)->Result<MatchResult , OrderBookError>{
         let mut bid_fills = Fills::new();
-     //   println!("inside matching function match bid");
+     
         let orignal_shares_qty = order.shares_qty;
-       // println!("recived the order , matching now");
-      
-        //let mut fills =  Fills::new();
+
         let opposite_side = &mut  self.askside ;
         // we have a bid to match , the best price shud be the loweest ask 
         while order.shares_qty > 0 {
@@ -136,11 +132,11 @@ impl OrderBook{
                 Some(price) => price,
                 None => break
             };
-           // println!("best price for opposite side is {:?}" , best_price);
+        
             if best_price > order.price{
                 break;
             }
-           // println!("no match");
+        
 
             let empty = {
                 let level = opposite_side.levels.get_mut(&best_price).unwrap();
@@ -222,6 +218,9 @@ impl OrderBook{
         if !bid_fills.fills.is_empty(){
             self.last_trade_price = bid_fills.fills.last().unwrap().price;
         }
+
+        // before returning we can calculate the best prices here and then send an event 
+        // here it is possible that both the askside and the bid side get updated 
 
         Ok(MatchResult{
             order_id : order.order_id ,user_id : order.user_id ,fills : bid_fills , remaining_qty : order.shares_qty , orignal_qty : orignal_shares_qty
@@ -324,6 +323,10 @@ impl OrderBook{
         if !ask_fills.fills.is_empty(){
             self.last_trade_price =  ask_fills.fills.last().unwrap().price; 
         }
+
+        // before returning we can calculate the best prices here and then send an event 
+        // here it is possible that both the askside and the bid side get updated 
+
         Ok(MatchResult{
             order_id : order.order_id , user_id : order.user_id ,fills : ask_fills, remaining_qty : order.shares_qty , orignal_qty:orignal_shares_qty
         })
@@ -427,6 +430,8 @@ impl OrderBook{
                 }
             }
        }
+
+       // here also we can pass the event of the updated best bid and the best ask , only one will be chnaged here 
     }
 
     

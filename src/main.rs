@@ -10,6 +10,7 @@ use core_affinity;
 use rust_orderbook_2::pubsub::pubsub_manager::RedisPubSubManager;
 use rust_orderbook_2::shm::fill_queue_mm::MarketMakerFill;
 use rust_orderbook_2::shm::holdings_response_queue::{HoldingResQueue, HoldingResponse};
+use rust_orderbook_2::shm::market_maker_feed::MarketMakerFeed;
 use rust_orderbook_2::shm::queue::IncomingOrderQueue;
 use rust_orderbook_2::shm::cancel_orders_queue::CancelOrderQueue;
 use rust_orderbook_2::shm::event_queue::{OrderEventQueue, OrderEvents};
@@ -42,6 +43,8 @@ fn main(){
     let (holding_event_producer_bm , holding_event_consumer_writter) = bounded_spsc_queue::make::<HoldingResponse>(32768);
     let (trade_log_producer_publisher , _)= bounded_spsc_queue::make::<TradeLogs>(32768);
     let (mm_fill_sender , mm_fill_reciever)= bounded_spsc_queue::make::<MarketMakerFill>(32768);
+    let (_ , mm_feed_receiver) = bounded_spsc_queue::make::<MarketMakerFeed>(32768);
+
 
     let shm_reader_handle = std::thread::spawn(move || {
         core_affinity::set_for_current(core_affinity::CoreId { id: 2 });
@@ -118,7 +121,8 @@ fn main(){
             order_event_consumer_writter_from_engine,
             balance_event_consumer_writter,
             holding_event_consumer_writter,
-            mm_fill_reciever
+            mm_fill_reciever,
+            mm_feed_receiver
         );
         if shm_writter.is_some(){
             shm_writter.unwrap().start_shm_writter();

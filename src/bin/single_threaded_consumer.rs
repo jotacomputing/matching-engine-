@@ -1,6 +1,6 @@
 
 use rust_orderbook_2::{
-    balance_manager::my_balance_manager2::{BalanceManagerResForLocking, STbalanceManager}, engine::my_engine::{Engine, STEngine}, logger::{log_reciever::LogReciever, types::{BalanceDelta, BaseLogs, HoldingDelta, OrderBookSnapShot, OrderDelta, TradeLogs}}, orderbook::{order::Order, types::Event}, shm::{balance_log_queue::BalanceLogQueue, balance_response_queue::BalanceResponse, fill_queue_mm::{MarketMakerFill, MarketMakerFillQueue}, holdings_log_queue::HoldingLogQueue, holdings_response_queue::HoldingResponse, reader::StShmReader, snapshot_queue::OrderBookSnapShotQueue, trade_log_queue::TradeLogQueue}
+    balance_manager::my_balance_manager2::{BalanceManagerResForLocking, STbalanceManager}, engine::my_engine::{Engine, STEngine}, logger::{log_reciever::LogReciever, types::{BalanceDelta, BaseLogs, HoldingDelta, OrderBookSnapShot, OrderDelta, TradeLogs}}, orderbook::{order::Order, types::Event}, shm::{balance_log_queue::BalanceLogQueue, balance_response_queue::BalanceResponse, fill_queue_mm::{MarketMakerFill, MarketMakerFillQueue}, holdings_log_queue::HoldingLogQueue, holdings_response_queue::HoldingResponse, market_maker_feed::{MarketMakerFeed, MarketMakerFeedQueue}, reader::StShmReader, snapshot_queue::OrderBookSnapShotQueue, trade_log_queue::TradeLogQueue}
 };
 use std::time::{Instant , Duration};
 use rust_orderbook_2::shm::queue::{IncomingOrderQueue};
@@ -45,7 +45,8 @@ impl TradingCore {
         balance_event_producer_bm : Producer<BalanceResponse>,
         holding_event_producer_bm : Producer<HoldingResponse>,
         log_sender_to_logger : Producer<BaseLogs>,
-        snapshot_sender_to_logger : Producer<OrderBookSnapShot>
+        snapshot_sender_to_logger : Producer<OrderBookSnapShot>,
+        market_maker_feed_event_sender : Producer<MarketMakerFeed>
     ) -> Self {
         let query_queue = QueryQueue::open("/tmp/Queries");
         if query_queue.is_err(){
@@ -56,7 +57,7 @@ impl TradingCore {
             query_queue : query_queue.unwrap(),
             balance_manager: STbalanceManager::new(event_sender_to_writter , balance_event_producer_bm , holding_event_producer_bm),
             shm_reader: StShmReader::new().unwrap(),
-            engine: STEngine::new(0 , event_sender_to_publisher_by_engine , order_event_producer_engine),
+            engine: STEngine::new(0 , event_sender_to_publisher_by_engine , order_event_producer_engine , market_maker_feed_event_sender ),
             processed_count: 0,
             order_batch : Vec::with_capacity(1000),
             log_sender_to_logger , 
@@ -313,6 +314,7 @@ fn main() {
     let _ = TradeLogQueue::create("/tmp/TradeLogs").expect("failed to open trade logs queue");
     let _ = OrderBookSnapShotQueue::create("/tmp/SnapShot").expect("failed to open snap shot queue");
     let _ = MarketMakerFillQueue::create("/tmp/MarketMakerFills").expect("failed to open market maker fill queue");
+    let _ = MarketMakerFeedQueue::create("/tmp/MarketMakerFeed").expect("failed to open the feed queue");
 
 
     let (order_event_producer_bm , order_event_consumer_writter_from_bm) = bounded_spsc_queue::make::<OrderEvents>(32678);
@@ -325,6 +327,7 @@ fn main() {
     let (trade_log_producer_publisher , trade_log_consumer_logger)= bounded_spsc_queue::make::<TradeLogs>(32768);
     let (orderbook_snapshot_sender , order_book_snapshot_reciver) = bounded_spsc_queue::make::<OrderBookSnapShot>(32768);
     let (mm_fill_sender , mm_fill_reciever)= bounded_spsc_queue::make::<MarketMakerFill>(32768);
+    let (mm_feed_sender , mm_feed_receiver) = bounded_spsc_queue::make::<MarketMakerFeed>(32768);
 
     let trading_core_handle = std::thread::spawn(move ||{
         core_affinity::set_for_current(core_affinity::CoreId { id: 2 });
@@ -335,7 +338,8 @@ fn main() {
             balance_event_producer_bm,
             holding_event_producer_bm,
             log_producer_core ,
-            orderbook_snapshot_sender
+            orderbook_snapshot_sender,
+            mm_feed_sender
         );
         trading_system.balance_manager.add_throughput_test_users();
         trading_system.engine.add_book(0);
@@ -371,7 +375,8 @@ fn main() {
             order_event_consumer_writter_from_engine,
             balance_event_consumer_writter,
             holding_event_consumer_writter,
-            mm_fill_reciever
+            mm_fill_reciever,
+            mm_feed_receiver
         );
         if shm_writter.is_some(){
             shm_writter.unwrap().start_shm_writter();

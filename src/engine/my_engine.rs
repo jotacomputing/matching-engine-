@@ -7,6 +7,7 @@ use crate::orderbook::types::{Event, Fills, MarketUpdateAfterTrade, MatchResult,
 use crate::orderbook::order_book::{ OrderBook};
 use crate::shm::cancel_orders_queue::{ CancelOrderQueue};
 use crate::shm::event_queue::OrderEvents;
+use crate::shm::market_maker_feed::MarketMakerFeed;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // 100 max symbols for now 
@@ -186,15 +187,21 @@ pub struct STEngine{
     pub cancel_order_queue : CancelOrderQueue,
     pub sending_event_to_publisher_try : Producer<Event>,
     pub sending_order_events_to_writter_try : Producer<OrderEvents>,
+    pub market_maker_feed_event_sender : Producer<MarketMakerFeed>
 }
 impl STEngine{
-    pub fn new( engine_id : usize , event_sender_to_publisher : Producer<Event> , sending_order_events_to_writter_try : Producer<OrderEvents>, )->Self {
+    pub fn new( engine_id : usize , 
+        event_sender_to_publisher : Producer<Event> , 
+        sending_order_events_to_writter_try : Producer<OrderEvents>, 
+        market_maker_feed_event_sender : Producer<MarketMakerFeed>
+    )->Self {
         // initialise the publisher channel here 
             let cancel_order_queue = CancelOrderQueue::open("/tmp/CancelOrders");
             if cancel_order_queue.is_err(){
                 eprintln!("Error initialising the cancel order queue in the Stengine ");   
             }
             Self{
+                market_maker_feed_event_sender ,
                 engine_id,
                 book_count : 0 ,
                 books : (0..MAX_SYMBOLS).map(|_| None).collect(),
