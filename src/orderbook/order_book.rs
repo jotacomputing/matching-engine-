@@ -114,20 +114,26 @@ impl OrderBook{
         }
         
         // at this point i can again call the get best price and send an event bcs only the oppsite sides best chnages in case of a market order 
+        let best_bid =  match self.bidside.get_best_price() {
+            Some(price)=>price,
+            None => 0
+        };
+
+        let best_ask = match self.askside.get_best_price() {
+            Some(price)=>price,
+            None => 0
+        };
+
+
         feedCallBack(
             MarketMakerFeed { 
                 timestamp: 0, 
                 last_traded_price: self.last_trade_price, 
-                best_bid: match self.bidside.get_best_price() {
-                    Some(price)=>price,
-                    None => 0
-                }, 
-                best_ask:  match self.askside.get_best_price() {
-                    Some(price)=>price,
-                    None => 0
-                }, 
-                best_bid_qty: 0, 
-                best_ask_qty: 0 }
+                best_bid, 
+                best_ask, 
+                best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
+                best_ask_qty: self.askside.levels[&best_ask].total_vol
+            }
         );
         Ok(MatchResult{
             order_id : order.order_id , user_id : order.user_id ,  fills : market_fills, remaining_qty:order.shares_qty , orignal_qty:orignal_shares_qty
@@ -236,20 +242,26 @@ impl OrderBook{
 
         // before returning we can calculate the best prices here and then send an event 
         // here it is possible that both the askside and the bid side get updated 
+        let best_bid =  match self.bidside.get_best_price() {
+            Some(price)=>price,
+            None => 0
+        };
+
+        let best_ask = match self.askside.get_best_price() {
+            Some(price)=>price,
+            None => 0
+        };
+
+
         feedCallBack(
             MarketMakerFeed { 
                 timestamp: 0, 
                 last_traded_price: self.last_trade_price, 
-                best_bid: match self.bidside.get_best_price() {
-                    Some(price)=>price,
-                    None => 0
-                }, 
-                best_ask:  match self.askside.get_best_price() {
-                    Some(price)=>price,
-                    None => 0
-                }, 
-                best_bid_qty: 0, 
-                best_ask_qty: 0 }
+                best_bid, 
+                best_ask, 
+                best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
+                best_ask_qty: self.askside.levels[&best_ask].total_vol
+            }
         );
 
         Ok(MatchResult{
@@ -356,20 +368,26 @@ impl OrderBook{
 
         // before returning we can calculate the best prices here and then send an event 
         // here it is possible that both the askside and the bid side get updated 
+        let best_bid =  match self.bidside.get_best_price() {
+            Some(price)=>price,
+            None => 0
+        };
+
+        let best_ask = match self.askside.get_best_price() {
+            Some(price)=>price,
+            None => 0
+        };
+
+
         feedCallBack(
             MarketMakerFeed { 
                 timestamp: 0, 
                 last_traded_price: self.last_trade_price, 
-                best_bid: match self.bidside.get_best_price() {
-                    Some(price)=>price,
-                    None => 0
-                }, 
-                best_ask:  match self.askside.get_best_price() {
-                    Some(price)=>price,
-                    None => 0
-                }, 
-                best_bid_qty: 0, 
-                best_ask_qty: 0 }
+                best_bid, 
+                best_ask, 
+                best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
+                best_ask_qty: self.askside.levels[&best_ask].total_vol
+            }
         );
 
         Ok(MatchResult{
@@ -476,21 +494,27 @@ impl OrderBook{
             }
        }
 
-       feedCallBack(
-        MarketMakerFeed { 
-            timestamp: 0, 
-            last_traded_price: self.last_trade_price, 
-            best_bid: match self.bidside.get_best_price() {
-                Some(price)=>price,
-                None => 0
-            }, 
-            best_ask:  match self.askside.get_best_price() {
-                Some(price)=>price,
-                None => 0
-            }, 
-            best_bid_qty: 0, 
-            best_ask_qty: 0 }
-    );
+        let best_bid =  match self.bidside.get_best_price() {
+            Some(price)=>price,
+            None => 0
+        };
+    
+        let best_ask = match self.askside.get_best_price() {
+            Some(price)=>price,
+            None => 0
+        };
+    
+    
+        feedCallBack(
+            MarketMakerFeed { 
+                timestamp: 0, 
+                last_traded_price: self.last_trade_price, 
+                best_bid, 
+                best_ask, 
+                best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
+                best_ask_qty: self.askside.levels[&best_ask].total_vol
+            }
+        );
 
        // here also we can pass the event of the updated best bid and the best ask , only one will be chnaged here 
     }
