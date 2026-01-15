@@ -132,7 +132,8 @@ impl OrderBook{
                     best_bid, 
                     best_ask, 
                     best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
-                    best_ask_qty: self.askside.levels[&best_ask].total_vol
+                    best_ask_qty: self.askside.levels[&best_ask].total_vol , 
+                    symbol : self.symbol
                 }
             );
         }
@@ -263,7 +264,8 @@ impl OrderBook{
                     best_bid, 
                     best_ask, 
                     best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
-                    best_ask_qty: self.askside.levels[&best_ask].total_vol
+                    best_ask_qty: self.askside.levels[&best_ask].total_vol,
+                    symbol : self.symbol
                 }
             );
         }
@@ -390,7 +392,8 @@ impl OrderBook{
                     best_bid, 
                     best_ask, 
                     best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
-                    best_ask_qty: self.askside.levels[&best_ask].total_vol
+                    best_ask_qty: self.askside.levels[&best_ask].total_vol,
+                    symbol : self.symbol
                 }
             );
         }
@@ -517,7 +520,8 @@ impl OrderBook{
                 best_bid, 
                 best_ask, 
                 best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
-                best_ask_qty: self.askside.levels[&best_ask].total_vol
+                best_ask_qty: self.askside.levels[&best_ask].total_vol,
+                symbol : self.symbol
             }
         );
 
