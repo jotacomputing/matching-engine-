@@ -22,7 +22,8 @@ pub struct QueueHeader {
 pub struct MarketMakerFill{
     pub timestamp   : u64 , 
     pub fill_price  : u64 ,
-    pub fill_quantity    : u32
+    pub fill_quantity    : u32 , 
+    pub symbol : u32
 }
 
 const QUEUE_MAGIC: u32 = 0xEAAAAAAE;

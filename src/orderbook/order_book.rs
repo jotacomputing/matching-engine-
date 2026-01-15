@@ -14,7 +14,7 @@ pub struct OrderBook{
 }
 
 impl OrderBook{
-    pub fn new(symbol : u32 )->Self{
+    pub fn new(symbol : u32)->Self{
         Self {
             symbol ,
             askside: BookSide::new(Side::Ask),
@@ -124,17 +124,19 @@ impl OrderBook{
             None => 0
         };
 
+        if best_bid != 0 || best_ask != 0 {
+            feedCallBack(
+                MarketMakerFeed { 
+                    timestamp: 0, 
+                    last_traded_price: self.last_trade_price, 
+                    best_bid, 
+                    best_ask, 
+                    best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
+                    best_ask_qty: self.askside.levels[&best_ask].total_vol
+                }
+            );
+        }
 
-        feedCallBack(
-            MarketMakerFeed { 
-                timestamp: 0, 
-                last_traded_price: self.last_trade_price, 
-                best_bid, 
-                best_ask, 
-                best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
-                best_ask_qty: self.askside.levels[&best_ask].total_vol
-            }
-        );
         Ok(MatchResult{
             order_id : order.order_id , user_id : order.user_id ,  fills : market_fills, remaining_qty:order.shares_qty , orignal_qty:orignal_shares_qty
         }) 
@@ -253,17 +255,18 @@ impl OrderBook{
         };
 
 
-        feedCallBack(
-            MarketMakerFeed { 
-                timestamp: 0, 
-                last_traded_price: self.last_trade_price, 
-                best_bid, 
-                best_ask, 
-                best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
-                best_ask_qty: self.askside.levels[&best_ask].total_vol
-            }
-        );
-
+        if best_bid != 0 || best_ask != 0 {
+            feedCallBack(
+                MarketMakerFeed { 
+                    timestamp: 0, 
+                    last_traded_price: self.last_trade_price, 
+                    best_bid, 
+                    best_ask, 
+                    best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
+                    best_ask_qty: self.askside.levels[&best_ask].total_vol
+                }
+            );
+        }
         Ok(MatchResult{
             order_id : order.order_id ,user_id : order.user_id ,fills : bid_fills , remaining_qty : order.shares_qty , orignal_qty : orignal_shares_qty
         })
@@ -368,6 +371,7 @@ impl OrderBook{
 
         // before returning we can calculate the best prices here and then send an event 
         // here it is possible that both the askside and the bid side get updated 
+
         let best_bid =  match self.bidside.get_best_price() {
             Some(price)=>price,
             None => 0
@@ -378,17 +382,18 @@ impl OrderBook{
             None => 0
         };
 
-
-        feedCallBack(
-            MarketMakerFeed { 
-                timestamp: 0, 
-                last_traded_price: self.last_trade_price, 
-                best_bid, 
-                best_ask, 
-                best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
-                best_ask_qty: self.askside.levels[&best_ask].total_vol
-            }
-        );
+        if best_bid != 0 || best_ask != 0 {
+            feedCallBack(
+                MarketMakerFeed { 
+                    timestamp: 0, 
+                    last_traded_price: self.last_trade_price, 
+                    best_bid, 
+                    best_ask, 
+                    best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
+                    best_ask_qty: self.askside.levels[&best_ask].total_vol
+                }
+            );
+        }
 
         Ok(MatchResult{
             order_id : order.order_id , user_id : order.user_id ,fills : ask_fills, remaining_qty : order.shares_qty , orignal_qty:orignal_shares_qty
