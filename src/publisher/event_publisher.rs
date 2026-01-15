@@ -76,7 +76,8 @@ impl EventPublisher {
                                     .unwrap()
                                     .as_nanos() as u64,
                                     fill_price: fill.price, 
-                                    fill_quantity: fill.quantity 
+                                    fill_quantity: fill.quantity , 
+                                    symbol : fill.symbol
                                 });
                             }
                             let trade_stream = format!("trade.{}" , rec_event.market_update.symbol);
