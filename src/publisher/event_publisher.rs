@@ -68,17 +68,69 @@ impl EventPublisher {
                     {
 
                         for fill in rec_event.market_update.match_result.fills.fills{
-                            if fill.maker_user_id == 1 || fill.taker_user_id == 1{
+                            if fill.maker_user_id == 1 {
                                 // this is the user ID of the market maker 
-                                self.mm_fill_sender.push(MarketMakerFill { 
-                                    timestamp : SystemTime::now()
-                                    .duration_since(UNIX_EPOCH)
-                                    .unwrap()
-                                    .as_nanos() as u64,
-                                    fill_price: fill.price, 
-                                    fill_quantity: fill.quantity , 
-                                    symbol : fill.symbol
-                                });
+                                // market maker was the maker user , this order was on the book 
+                                match fill.taker_side{
+                                    Side::Ask=>{
+                                        // taker was seeling so the market maker was buying 
+                                        // the fill is of a buy order , side 0 
+                                        self.mm_fill_sender.push(MarketMakerFill { 
+                                            timestamp : SystemTime::now()
+                                            .duration_since(UNIX_EPOCH)
+                                            .unwrap()
+                                            .as_nanos() as u64,
+                                            fill_price: fill.price, 
+                                            fill_quantity: fill.quantity , 
+                                            symbol : fill.symbol , 
+                                            side_of_mm_order : 0
+                                        });
+                                    }
+                                    Side::Bid=>{
+                                        // incoming order was buy order so mm was selling 
+                                        self.mm_fill_sender.push(MarketMakerFill { 
+                                            timestamp : SystemTime::now()
+                                            .duration_since(UNIX_EPOCH)
+                                            .unwrap()
+                                            .as_nanos() as u64,
+                                            fill_price: fill.price, 
+                                            fill_quantity: fill.quantity , 
+                                            symbol : fill.symbol , 
+                                            side_of_mm_order : 1
+                                        });
+                                    }
+                                }
+                                
+                            }
+
+                            if fill.taker_user_id == 1{
+                                // this was the incoming order 
+                                match fill.taker_side{
+                                    Side::Ask=>{
+                                        self.mm_fill_sender.push(MarketMakerFill { 
+                                            timestamp : SystemTime::now()
+                                            .duration_since(UNIX_EPOCH)
+                                            .unwrap()
+                                            .as_nanos() as u64,
+                                            fill_price: fill.price, 
+                                            fill_quantity: fill.quantity , 
+                                            symbol : fill.symbol , 
+                                            side_of_mm_order : 1
+                                        });
+                                    }
+                                    Side::Bid=>{
+                                        self.mm_fill_sender.push(MarketMakerFill { 
+                                            timestamp : SystemTime::now()
+                                            .duration_since(UNIX_EPOCH)
+                                            .unwrap()
+                                            .as_nanos() as u64,
+                                            fill_price: fill.price, 
+                                            fill_quantity: fill.quantity , 
+                                            symbol : fill.symbol , 
+                                            side_of_mm_order : 0
+                                        });
+                                    }
+                                }
                             }
                             let trade_stream = format!("trade.{}" , rec_event.market_update.symbol);
                             let trade_message = TradeData::new(
