@@ -68,7 +68,7 @@ impl EventPublisher {
                     {
 
                         for fill in rec_event.market_update.match_result.fills.fills{
-                            if fill.maker_user_id == 1 {
+                            if fill.maker_user_id == 0 {
                                 // this is the user ID of the market maker 
                                 // market maker was the maker user , this order was on the book 
                                 match fill.taker_side{
@@ -103,7 +103,7 @@ impl EventPublisher {
                                 
                             }
 
-                            if fill.taker_user_id == 1{
+                            if fill.taker_user_id == 0{
                                 // this was the incoming order 
                                 match fill.taker_side{
                                     Side::Ask=>{
