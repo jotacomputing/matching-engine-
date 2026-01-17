@@ -81,35 +81,35 @@ impl ShmWriter{
             let mut did_work = false;
             // THE BALANCE AND THE HOLDINGS EVENTS FOR THE UPDATED BALANCE , HOLDINGS , AFTER EACH TRADE 
             if let Some(balance_updates) = self.rec_balance_update.try_pop(){
-                let _ = self.balance_response_queue.enqueue(balance_updates);
+                let _ = self.balance_response_queue.enqueue(balance_updates).expect("balance response enqeueue error ");
                 did_work = true;
             }
 
             if let Some(holding_updates) = self.rec_holdings_updates.try_pop(){
-                let _= self.holding_response_queue.enqueue(holding_updates);
+                let _= self.holding_response_queue.enqueue(holding_updates).expect("holding response enqeueue error ");
                 did_work = true;
             }
             // THE ORDER EVENT FOR USER TOO SEE , THE RESULT OF HIS PLACED ORDER 
             if let Some(event) = self.rec_from_publisher_try.try_pop(){
-                let _ = self.order_event_queue.enqueue(event);
+                let _ = self.order_event_queue.enqueue(event).expect("order event enqeueue error ");
                 did_work = true;
             }
             if let Some(feed )= self.mm_feed_recive.try_pop(){
-                let _ = self.market_maker_feed_queue.enqueue(feed);
+                let _ = self.market_maker_feed_queue.enqueue(feed).expect("mm feed enqeueue error ");
                 did_work = true;
             }
             if let Some(fill) = self.mm_fill_recive.try_pop(){
-                let _ = self.market_maker_fill_queue.enqueue(fill);
+                let _ = self.market_maker_fill_queue.enqueue(fill).expect("mm fill enqeueue error ");
                 did_work = true;
             }
             // THE INSUFFICIENT FUND EVENT 
             if let Some(event) = self.rec_from_bm_try.try_pop(){
-                let _ = self.order_event_queue.enqueue(event);
+                let _ = self.order_event_queue.enqueue(event).expect("order event enqeueue error ");
                 did_work = true;
             }
             // THE SUCCESSFULL CANCELLATION OF ORDER EVENT 
             if let Some(event) = self.rec_from_engine_try.try_pop(){
-                let _= self.order_event_queue.enqueue(event);
+                let _= self.order_event_queue.enqueue(event).expect("order event  enqeueue error ");
                 did_work = true ;
             }
             

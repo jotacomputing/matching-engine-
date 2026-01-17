@@ -322,6 +322,8 @@ fn main() {
     let _ = MarketMakerFillQueue::create("/tmp/MarketMakerFills").expect("failed to open market maker fill queue");
     let _ = MarketMakerFeedQueue::create("/tmp/MarketMakerFeed").expect("failed to open the feed queue");
 
+    // the market maker order queue will be initiliased in the market maker binary itself 
+
 
     let (order_event_producer_bm , order_event_consumer_writter_from_bm) = bounded_spsc_queue::make::<OrderEvents>(32678);
     let (event_producer_engine , event_consumer_publisher) = bounded_spsc_queue::make::<Event>(32678);

@@ -76,6 +76,7 @@ impl EventPublisher {
                                         // taker was seeling so the market maker was buying 
                                         // the fill is of a buy order , side 0 
                                         self.mm_fill_sender.push(MarketMakerFill { 
+                                            order_id_mm_order : fill.maker_order_id,
                                             timestamp : SystemTime::now()
                                             .duration_since(UNIX_EPOCH)
                                             .unwrap()
@@ -89,6 +90,7 @@ impl EventPublisher {
                                     Side::Bid=>{
                                         // incoming order was buy order so mm was selling 
                                         self.mm_fill_sender.push(MarketMakerFill { 
+                                            order_id_mm_order : fill.maker_order_id,
                                             timestamp : SystemTime::now()
                                             .duration_since(UNIX_EPOCH)
                                             .unwrap()
@@ -108,6 +110,7 @@ impl EventPublisher {
                                 match fill.taker_side{
                                     Side::Ask=>{
                                         self.mm_fill_sender.push(MarketMakerFill { 
+                                            order_id_mm_order : fill.taker_order_id,
                                             timestamp : SystemTime::now()
                                             .duration_since(UNIX_EPOCH)
                                             .unwrap()
@@ -120,6 +123,7 @@ impl EventPublisher {
                                     }
                                     Side::Bid=>{
                                         self.mm_fill_sender.push(MarketMakerFill { 
+                                            order_id_mm_order : fill.taker_order_id,
                                             timestamp : SystemTime::now()
                                             .duration_since(UNIX_EPOCH)
                                             .unwrap()
