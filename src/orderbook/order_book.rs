@@ -124,7 +124,7 @@ impl OrderBook{
             None => 0
         };
 
-        if best_bid != 0 || best_ask != 0 {
+        if best_bid != 0 && best_ask != 0 {
             feedCallBack(
                 MarketMakerFeed { 
                     timestamp: 0, 
@@ -256,7 +256,7 @@ impl OrderBook{
         };
 
 
-        if best_bid != 0 || best_ask != 0 {
+        if best_bid != 0 && best_ask != 0 {
             feedCallBack(
                 MarketMakerFeed { 
                     timestamp: 0, 
@@ -384,19 +384,19 @@ impl OrderBook{
             None => 0
         };
 
-        //if best_bid != 0 || best_ask != 0 {
-        //    feedCallBack(
-        //        MarketMakerFeed { 
-        //            timestamp: 0, 
-        //            last_traded_price: self.last_trade_price, 
-        //            best_bid, 
-        //            best_ask, 
-        //            best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
-        //            best_ask_qty: self.askside.levels[&best_ask].total_vol,
-        //            symbol : self.symbol
-        //        }
-        //    );
-        //}
+        if best_bid != 0 && best_ask != 0 {
+            feedCallBack(
+                MarketMakerFeed { 
+                    timestamp: 0, 
+                    last_traded_price: self.last_trade_price, 
+                    best_bid, 
+                    best_ask, 
+                    best_bid_qty: self.bidside.levels[&best_bid].total_vol, 
+                    best_ask_qty: self.askside.levels[&best_ask].total_vol,
+                    symbol : self.symbol
+                }
+            );
+        }
 
         Ok(MatchResult{
             order_id : order.order_id , user_id : order.user_id ,fills : ask_fills, remaining_qty : order.shares_qty , orignal_qty:orignal_shares_qty
