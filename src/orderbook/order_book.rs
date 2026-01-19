@@ -143,7 +143,7 @@ impl OrderBook{
         }) 
     }
 
-    #[cfg_attr(feature = "hotpath", hotpath::measure)]
+
     pub fn match_bid<F>(&mut self , order: &mut Order , mut feedCallBack : F)->Result<MatchResult , OrderBookError> where F : FnMut(MarketMakerFeed){
         let mut bid_fills = Fills::new();
      

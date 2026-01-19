@@ -5,6 +5,10 @@ use thiserror::Error;
 use serde::{Serialize, Deserialize };
 use smallvec::SmallVec;
 
+
+
+// we have no mention of the fill type partially filled or fully filled -> issue 
+
 #[derive(Debug , Clone , Copy)]
 pub struct Fill{
     pub price : u64 , 
