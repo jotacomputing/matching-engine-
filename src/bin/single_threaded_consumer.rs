@@ -350,7 +350,7 @@ fn main() {
             mm_feed_sender
         );
         trading_system.balance_manager.add_throughput_test_users();
-        trading_system.engine.add_book(0);
+        //trading_system.engine.add_book(0);
         trading_system.run();
     });
 
