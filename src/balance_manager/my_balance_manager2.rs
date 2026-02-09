@@ -541,7 +541,6 @@ impl STbalanceManager{
     }
 
 
-    #[inline(always)]
     pub fn check_and_lock_funds(&mut self , order : Order)->Result<BalanceManagerResForLocking , BalanceManagerError>{
         // currently for limit orders , we get an order 
         // we have user id , symbol , side , holfings 
@@ -617,7 +616,7 @@ impl STbalanceManager{
         }
         
     }
-    #[inline(always)]
+    
     pub fn update_balances_after_trade<F , G>(&mut self, order_fills: Fills , mut emit : F , mut next_id : G)-> Result<(), BalanceManagerError>  where F : FnMut(BaseLogs) , G : FnMut()->u64 {
         //println!("updating the post trade funds for each fill , sending updates for go cache");
         for fill in order_fills.fills {

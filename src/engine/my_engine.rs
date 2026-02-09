@@ -206,7 +206,7 @@ impl STEngine{
                 sending_order_events_to_writter_try
             } 
     }
-    #[inline(always)]
+    
     pub fn process_order<F>(&mut self , mut recieved_order : Order , mut feedCallBack : F)->(Option<MatchResult> , Option<MarketUpdateAfterTrade>) where F : FnMut(MarketMakerFeed){
       
         if let Some(order_book) = self.get_book_mut(recieved_order.symbol){
